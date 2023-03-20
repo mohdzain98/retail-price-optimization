@@ -1,2 +1,3 @@
 # Retail_price_optimization
-Buiseness Analytics
+Business Analytics<br>
+Neural Network was implemented on a business data to optimize the lag_price
