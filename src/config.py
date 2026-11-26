@@ -1,47 +1,85 @@
-"""Typed configuration and project paths.
+"""Typed, frozen configuration and canonical project paths.
 
-Loads config/config.yaml into validated pydantic models so every stage reads
-tunables from one place. Also exposes the canonical project directories used
-by the pipeline, notebooks and Streamlit app.
+Loads config/config.yaml into validated pydantic models (`Config.load()`), so
+every stage reads tunables from one place. Fixed choices are Enums. Paths are
+module constants that composition roots pass into the classes that need them.
 """
 
 from __future__ import annotations
 
-from functools import lru_cache
+from enum import StrEnum
 from pathlib import Path
-from typing import Literal
 
 import yaml
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+from src.schema import Col, Tactic
+from src.utils.exceptions import MissingFileError
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "config.yaml"
 DATA_RAW = ROOT / "data" / "raw"
 DATA_PROCESSED = ROOT / "data" / "processed"
+PANEL_PATH = DATA_PROCESSED / "panel.parquet"
 FIGURES = ROOT / "reports" / "figures"
 
 
-class SheetsConfig(BaseModel):
-    """Sheet names inside the raw Breakfast at the Frat workbook.
+class Grain(StrEnum):
+    """Panel granularity the models run on."""
 
-    Defaults follow the public release; verify against the downloaded file.
-    """
-
-    transactions: str
-    products: str
-    stores: str
+    PRODUCT_WEEK = "product_week"
+    STORE_PRODUCT_WEEK = "store_product_week"
 
 
-class DataConfig(BaseModel):
+class Sheet(StrEnum):
+    """Logical tables inside the raw workbook."""
+
+    TRANSACTIONS = "transactions"
+    PRODUCTS = "products"
+    STORES = "stores"
+
+
+class Objective(StrEnum):
+    """What the price optimizer maximizes."""
+
+    PROFIT = "profit"
+    REVENUE = "revenue"
+    WEIGHTED = "weighted"
+
+
+class DemandForm(StrEnum):
+    """Demand curve used inside the optimizer."""
+
+    CONSTANT_ELASTICITY = "constant_elasticity"
+    LINEAR = "linear"
+
+
+class _Frozen(BaseModel):
+    """Base for all config models: immutable after validation."""
+
+    model_config = ConfigDict(frozen=True)
+
+
+class DataConfig(_Frozen):
     """Location and layout of the raw dataset.
 
-    `grain` selects whether models run on product-week or store-product-week.
+    `columns` maps raw column names to canonical `Col` names, per sheet.
     """
 
     raw_file: str
-    sheets: SheetsConfig
-    header_row: int = 0
-    grain: Literal["product_week", "store_product_week"] = "product_week"
+    sheets: dict[Sheet, str]
+    header_row: int | None = None
+    grain: Grain = Grain.PRODUCT_WEEK
+    columns: dict[Sheet, dict[str, Col]]
+
+    @model_validator(mode="after")
+    def _covers_all_sheets(self) -> DataConfig:
+        """Require a sheet name and a column mapping for every Sheet."""
+        for name, mapping in (("sheets", self.sheets), ("columns", self.columns)):
+            missing = set(Sheet) - set(mapping)
+            if missing:
+                raise ValueError(f"data.{name} is missing {sorted(missing)}")
+        return self
 
     @property
     def raw_path(self) -> Path:
@@ -49,7 +87,7 @@ class DataConfig(BaseModel):
         return DATA_RAW / self.raw_file
 
 
-class FiltersConfig(BaseModel):
+class FiltersConfig(_Frozen):
     """Eligibility rules for products to get their own elasticity.
 
     Products failing these are kept but receive an imputed elasticity.
@@ -59,39 +97,27 @@ class FiltersConfig(BaseModel):
     min_price_variation: float
 
 
-class SplitConfig(BaseModel):
-    """Time-based train/holdout split settings.
-
-    The last `holdout_weeks` weeks of each series are held out.
-    """
+class SplitConfig(_Frozen):
+    """Time-based train/holdout split: the last `holdout_weeks` weeks are test."""
 
     holdout_weeks: int
 
 
-class FeaturesConfig(BaseModel):
-    """Feature engineering settings for seasonality and holidays.
-
-    Fourier order controls how many sin/cos pairs model yearly seasonality.
-    """
+class FeaturesConfig(_Frozen):
+    """Seasonality (Fourier order) and holiday calendar country."""
 
     fourier_order: int
     holiday_country: str
 
 
-class TrendConfig(BaseModel):
-    """LOESS trend smoothing settings.
+class TrendConfig(_Frozen):
+    """LOESS trend window in weeks; kept above 52 so it skips yearly seasonality."""
 
-    `lowess_frac` is the fraction of points used for each local fit.
-    """
-
-    lowess_frac: float
+    lowess_window_weeks: int
 
 
-class BayesConfig(BaseModel):
-    """PyMC sampler settings for the hierarchical elasticity model.
-
-    `hdi_prob` sets the width of reported credible intervals.
-    """
+class BayesConfig(_Frozen):
+    """PyMC sampler settings; `hdi_prob` sets credible-interval width."""
 
     draws: int
     tune: int
@@ -101,7 +127,7 @@ class BayesConfig(BaseModel):
     hdi_prob: float
 
 
-class ElasticityConfig(BaseModel):
+class ElasticityConfig(_Frozen):
     """Elasticity guard-rails and Bayesian model settings.
 
     Estimates outside `bounds` are replaced with category-level imputation.
@@ -120,11 +146,8 @@ class ElasticityConfig(BaseModel):
         return v
 
 
-class CostConfig(BaseModel):
-    """Assumed margins used to derive unit cost from base price.
-
-    The dataset has no cost column, so cost = (1 - margin) * base_price.
-    """
+class CostConfig(_Frozen):
+    """Assumed margins: cost = (1 - margin) * base_price (no cost column in data)."""
 
     default_margin: float
     margin_by_category: dict[str, float] = {}
@@ -134,15 +157,15 @@ class CostConfig(BaseModel):
         return self.margin_by_category.get(category, self.default_margin)
 
 
-class OptimizationConfig(BaseModel):
+class OptimizationConfig(_Frozen):
     """Objective, demand form, constraints and NLopt solver settings.
 
     Price bounds are multipliers of the current price (e.g. 0.8-1.2).
     """
 
-    objective: Literal["profit", "revenue", "weighted"]
+    objective: Objective
     profit_weight: float
-    demand_form: Literal["constant_elasticity", "linear"]
+    demand_form: DemandForm
     price_bounds: tuple[float, float]
     volume_floor: float
     max_avg_price_increase: float
@@ -163,32 +186,29 @@ class OptimizationConfig(BaseModel):
         return self
 
 
-class ForecastConfig(BaseModel):
-    """Forecast horizon for baseline projection.
-
-    Measured in weeks from the last observed week.
-    """
+class ForecastConfig(_Frozen):
+    """Forecast horizon in weeks from the last observed week."""
 
     horizon_weeks: int
 
 
-class PromoConfig(BaseModel):
-    """High-level promo budget allocation settings.
-
-    Fixed costs per tactic are assumptions; the dataset has no trade spend.
-    """
+class PromoConfig(_Frozen):
+    """High-level promo budget settings; tactic fixed costs are assumptions."""
 
     budget: float
-    tactics: list[Literal["tpr", "feature", "display"]]
-    fixed_cost: dict[str, float]
+    tactics: list[Tactic]
+    fixed_cost: dict[Tactic, float]
     max_promos_per_sku: int
     min_gap_weeks: int
 
 
-class Config(BaseModel):
-    """Root configuration object mirroring config/config.yaml.
+_CACHE: dict[Path, Config] = {}
 
-    Obtain it via `load_config()` rather than constructing it directly.
+
+class Config(_Frozen):
+    """Root configuration mirroring config/config.yaml.
+
+    Obtain it with `Config.load()`; instances are cached per file path.
     """
 
     data: DataConfig
@@ -202,12 +222,14 @@ class Config(BaseModel):
     forecast: ForecastConfig
     promo: PromoConfig
 
+    @classmethod
+    def load(cls, path: Path = CONFIG_PATH) -> Config:
+        """Load and validate the YAML config, cached per path.
 
-@lru_cache(maxsize=4)
-def load_config(path: Path = CONFIG_PATH) -> Config:
-    """Load and validate the YAML config, cached per path.
-
-    Raises pydantic.ValidationError if any field is missing or out of range.
-    """
-    with open(path) as f:
-        return Config.model_validate(yaml.safe_load(f))
+        Raises MissingFileError if the file is absent, ValidationError if invalid.
+        """
+        if path not in _CACHE:
+            if not path.exists():
+                raise MissingFileError(f"Config file not found: {path}")
+            _CACHE[path] = cls.model_validate(yaml.safe_load(path.read_text()))
+        return _CACHE[path]

@@ -1,6 +1,6 @@
 # Retail Price Optimization
 
-> 🚧 Work in progress — Phase 0 (setup) complete. See the [implementation plan](docs/implementation_plan.md).
+> 🚧 Work in progress: Phase 0 (setup) and Phase 1 (data prep) done; Phase 2 (elasticity) next. See the [implementation plan](docs/implementation_plan.md).
 
 End-to-end **Revenue Growth Management (RGM)** pipeline on the dunnhumby *Breakfast at the Frat* dataset:
 
@@ -13,21 +13,24 @@ End-to-end **Revenue Growth Management (RGM)** pipeline on the dunnhumby *Breakf
 ## Quickstart
 
 ```bash
-make setup        # uv sync + pre-commit hooks
-cp .env.example .env
-make data-check   # tells you how to get the dataset if missing
-make check        # lint + tests + pre-commit
+make setup        # one-time: env + deps, .env, git hooks, dataset check (scripts/setup.sh)
+make prep         # Phase 1: raw xlsx -> data/processed/panel.parquet
+make check        # lint + types + tests + pre-commit
 ```
 
+Data: download "Breakfast at the Frat" from [dunnhumby source files](https://www.dunnhumby.com/source-files/)
+(free form) and put the `.xlsx` in `data/raw/`. `make data-check` verifies it.
+
 `make setup` uses [uv](https://docs.astral.sh/uv/) if it is installed. Otherwise it creates `.venv` with
-`python3 -m venv` and installs `requirements.txt` + `requirements-dev.txt` with pip (Python 3.11 or 3.12).
-`requirements*.txt` list top-level packages only and mirror `pyproject.toml`. Exact versions are pinned in `uv.lock`.
+`python3 -m venv` (Python 3.11 or 3.12) and installs `requirements-dev.txt`, which includes `requirements.txt`, with pip.
+`requirements*.txt` list top-level packages only and mirror `pyproject.toml`. Exact versions are pinned in `uv.lock`,
+so use uv for reproducible results.
 
 ## Layout
 
 ```
 config/config.yaml   all tunables (margins, bounds, constraints)
-src/                 pipeline package (from src.config import ...)
+src/                 pipeline package: prep/, utils/, config, schema, plots, pipeline
 notebooks/           thin presentation notebooks
 app/                 Streamlit app
 tests/               unit tests (math + constraints)
