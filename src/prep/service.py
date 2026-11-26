@@ -22,7 +22,7 @@ from src.prep.panel import (
     TransactionCleaner,
 )
 from src.prep.trend import LowessTrend
-from src.schema import Col, Split
+from src.schema import Col, Split, driver_columns
 from src.utils import AppLogger
 
 logger = AppLogger.get_logger(__name__)
@@ -91,6 +91,9 @@ class DataPrepFactory:
             loader=RawDataLoader(self._loader_settings),
             panel_builder=panel_builder,
             feature_builder=FeatureBuilder([s.from_config(cfg) for s in FEATURE_STEPS]),
-            trend=LowessTrend(cfg.trend.lowess_window_weeks),
+            trend=LowessTrend(
+                cfg.trend.lowess_window_weeks,
+                drivers=driver_columns(cfg.features.fourier_order, cfg.features.pantry_lags),
+            ),
             output_path=self._output_path,
         )

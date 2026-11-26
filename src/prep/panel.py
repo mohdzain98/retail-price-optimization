@@ -16,7 +16,7 @@ import pandas as pd
 
 from src.config import FiltersConfig, Grain
 from src.prep.loader import RawData
-from src.schema import PROMO_COLS, SUM_COLS, Col, FilterReason
+from src.schema import PROMO_COLS, SUM_COLS, TACTIC_COLS, Col, FilterReason
 from src.utils import AppLogger, Registry
 
 logger = AppLogger.get_logger(__name__)
@@ -29,7 +29,7 @@ class TransactionCleaner:
     """Drops invalid transaction rows and repairs base price.
 
     Base price is filled within store-UPC, then from price, and floored at price
-    (a promo can lower the price below base, never raise it above).
+    (a promo can lower the price below base); adds the feature+display flag.
     """
 
     def clean(self, tx: pd.DataFrame) -> pd.DataFrame:
@@ -40,10 +40,13 @@ class TransactionCleaner:
         base = by_series.ffill().groupby([ordered[Col.STORE], ordered[Col.UPC]]).bfill()
         base = np.maximum(base.fillna(ordered[Col.PRICE]), ordered[Col.PRICE])
         promos = {c: ordered[c].fillna(0).astype(int) for c in PROMO_COLS}
+        both = promos[Col.FEATURE] * promos[Col.DISPLAY]  # feature + display together
         logger.info(
             "Cleaned transactions", extra={"rows_in": len(tx), "dropped": len(tx) - len(ordered)}
         )
-        return ordered.assign(**{Col.BASE_PRICE: base}, **promos).reset_index(drop=True)
+        return ordered.assign(
+            **{Col.BASE_PRICE: base, Col.FEATURE_DISPLAY: both}, **promos
+        ).reset_index(drop=True)
 
 
 class Aggregator(ABC):
@@ -79,7 +82,7 @@ class ProductWeekAggregator(Aggregator):
         out = weighted.groupby(list(self.keys), as_index=False).agg(
             **{c: (c, "sum") for c in SUM_COLS},
             **{_BASE_X_UNITS: (_BASE_X_UNITS, "sum")},
-            **{c: (c, "mean") for c in PROMO_COLS},
+            **{c: (c, "mean") for c in TACTIC_COLS},
             **{Col.N_STORES: (Col.STORE, "nunique")},
         )
         price = out[Col.SPEND] / out[Col.UNITS]

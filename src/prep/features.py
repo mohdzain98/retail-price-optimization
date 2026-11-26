@@ -1,8 +1,8 @@
 """Feature engineering steps and the time-based split for the panel.
 
 Each FeatureStep registers in FEATURE_STEPS and FeatureBuilder applies them in
-registration order: log quantities/prices, Fourier seasonality, US holiday week
-flags (incl. Super Bowl) and a global time index with the train/test split.
+registration order: logs and price split, coverage, promo flag, pantry loading,
+Fourier seasonality, US holiday weeks and a global time index with the split.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import Config
-from src.schema import Col, Split
+from src.schema import TACTIC_COLS, Col, Split, fourier_columns, pantry_columns
 from src.utils import ConfigError, Registry
 
 WEEK_DAYS = 7
@@ -47,7 +47,10 @@ FEATURE_STEPS: Registry[str, type[FeatureStep]] = Registry("name")
 
 @FEATURE_STEPS.register
 class LogFeatures(FeatureStep):
-    """Adds ln_units, ln_price, ln_base_price and discount_depth (clipped to [0, 1])."""
+    """Adds ln_units, ln_price, ln_base_price, ln_promo_price and discount_depth.
+
+    ln_price = ln_base_price + ln_promo_price: regular price level plus promo deviation.
+    """
 
     name = "log"
 
@@ -63,9 +66,86 @@ class LogFeatures(FeatureStep):
                 Col.LN_UNITS: np.log(panel[Col.UNITS]),
                 Col.LN_PRICE: np.log(panel[Col.PRICE]),
                 Col.LN_BASE_PRICE: np.log(panel[Col.BASE_PRICE]),
+                Col.LN_PROMO_PRICE: np.log(panel[Col.PRICE] / panel[Col.BASE_PRICE]),
                 Col.DISCOUNT_DEPTH: (1 - panel[Col.PRICE] / panel[Col.BASE_PRICE]).clip(0, 1),
             }
         )
+
+
+@FEATURE_STEPS.register
+class StoreCoverage(FeatureStep):
+    """Adds ln_n_stores: distribution control, since summed units scale with coverage.
+
+    Constant (0) at store grain, where models drop it as zero-variance.
+    """
+
+    name = "store_coverage"
+
+    @classmethod
+    def from_config(cls, cfg: Config) -> StoreCoverage:
+        """No settings needed."""
+        return cls()
+
+    def apply(self, panel: pd.DataFrame) -> pd.DataFrame:
+        """Add the log store count."""
+        return panel.assign(**{Col.LN_N_STORES: np.log(panel[Col.N_STORES])})
+
+
+@FEATURE_STEPS.register
+class PromoFlag(FeatureStep):
+    """Flags promo weeks: discount depth or feature/display share above thresholds.
+
+    Mirrors the RGMx promo flag (price/EDLP below threshold or promo ACV above one).
+    """
+
+    name = "promo_flag"
+
+    def __init__(self, min_discount: float, min_tactic_share: float) -> None:
+        self._min_discount = min_discount
+        self._min_share = min_tactic_share
+
+    @classmethod
+    def from_config(cls, cfg: Config) -> PromoFlag:
+        """Read thresholds from config."""
+        return cls(cfg.features.promo_min_discount, cfg.features.promo_min_tactic_share)
+
+    def apply(self, panel: pd.DataFrame) -> pd.DataFrame:
+        """Add promo_flag (0/1)."""
+        merch = [c for c in TACTIC_COLS if c != Col.TPR]
+        is_promo = (panel[Col.DISCOUNT_DEPTH] >= self._min_discount) | (
+            panel[merch].max(axis=1) >= self._min_share
+        )
+        return panel.assign(**{Col.PROMO_FLAG: is_promo.astype(int)})
+
+
+@FEATURE_STEPS.register
+class PantryLoading(FeatureStep):
+    """Adds pl1..plN: the promo flag lagged 1..N weeks within each series.
+
+    Captures the post-promotion dip as shoppers use up stock bought on deal (RGMx).
+    """
+
+    name = "pantry_loading"
+    SERIES_COLS: ClassVar[tuple[Col, ...]] = (Col.STORE, Col.UPC)
+
+    def __init__(self, lags: int) -> None:
+        self._lags = lags
+
+    @classmethod
+    def from_config(cls, cfg: Config) -> PantryLoading:
+        """Read the number of lags from config."""
+        return cls(cfg.features.pantry_lags)
+
+    def apply(self, panel: pd.DataFrame) -> pd.DataFrame:
+        """Add lagged promo flags (0 before the series starts); keeps row order."""
+        keys = [c for c in self.SERIES_COLS if c in panel.columns]
+        ordered = panel.sort_values([*keys, Col.WEEK])
+        flags = ordered.groupby(keys)[Col.PROMO_FLAG]
+        lags = {
+            name: flags.shift(i).fillna(0).astype(int)
+            for i, name in enumerate(pantry_columns(self._lags), start=1)
+        }
+        return panel.assign(**{name: lag.reindex(panel.index) for name, lag in lags.items()})
 
 
 @FEATURE_STEPS.register
@@ -76,8 +156,6 @@ class FourierSeasonality(FeatureStep):
     """
 
     name = "fourier"
-    SIN: ClassVar[str] = "sin_{k}"
-    COS: ClassVar[str] = "cos_{k}"
 
     def __init__(self, order: int) -> None:
         self._order = order
@@ -89,15 +167,16 @@ class FourierSeasonality(FeatureStep):
 
     def column_names(self) -> list[str]:
         """sin_1, cos_1, ..., sin_K, cos_K."""
-        return [t.format(k=k) for k in range(1, self._order + 1) for t in (self.SIN, self.COS)]
+        return fourier_columns(self._order)
 
     def apply(self, panel: pd.DataFrame) -> pd.DataFrame:
         """Add 2 * order seasonality columns."""
         angle = 2 * np.pi * panel[Col.WEEK].dt.day_of_year.to_numpy() / DAYS_PER_YEAR
+        names = iter(self.column_names())
         terms = {}
         for k in range(1, self._order + 1):
-            terms[self.SIN.format(k=k)] = np.sin(k * angle)
-            terms[self.COS.format(k=k)] = np.cos(k * angle)
+            terms[next(names)] = np.sin(k * angle)
+            terms[next(names)] = np.cos(k * angle)
         return panel.assign(**terms)
 
 

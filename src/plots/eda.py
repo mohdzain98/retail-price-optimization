@@ -1,14 +1,10 @@
-"""Shared matplotlib style and the Phase 1 EDA charts.
+"""Phase 1 EDA charts over the modelling panel.
 
-PlotStyle holds the validated palette and inks and applies them globally;
-EdaPlotter draws the EDA figures and saves them to the injected figures folder.
-Becomes a plots/ package once a second plotting module is needed.
+EdaPlotter draws coverage, price-vs-units, promo frequency and trend charts.
+Uses PlotStyle for all colours; FigureStore saves the returned figures.
 """
 
 from __future__ import annotations
-
-from dataclasses import dataclass
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,61 +13,18 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 
+from src.plots.style import PlotStyle
 from src.schema import PROMO_COLS, Col, Split
-
-
-@dataclass(frozen=True)
-class PlotStyle:
-    """Palette (categorical slots in fixed order, never cycled) and neutral inks.
-
-    `apply()` writes the matching matplotlib rcParams.
-    """
-
-    series: tuple[str, ...] = (
-        "#257de0", "#f47230", "#00b894", "#f2a600", "#ee7fac", "#008a17", "#6a4ce2", "#ec4647",
-    )  # fmt: skip
-    ink: str = "#191919"
-    ink_secondary: str = "#666666"
-    grid: str = "#e6e6e6"
-    sequential_cmap: str = "Blues"
-
-    def apply(self) -> None:
-        """Set global rcParams for every subsequent figure."""
-        plt.rcParams.update(
-            {
-                "figure.dpi": 110, "savefig.dpi": 150, "savefig.bbox": "tight",
-                "axes.edgecolor": self.grid, "axes.labelcolor": self.ink_secondary,
-                "axes.titlecolor": self.ink, "axes.titlesize": 11, "axes.titleweight": "bold",
-                "axes.grid": True, "axes.axisbelow": True,
-                "axes.spines.top": False, "axes.spines.right": False,
-                "grid.color": self.grid, "grid.linewidth": 0.6,
-                "xtick.color": self.ink_secondary, "ytick.color": self.ink_secondary,
-                "legend.frameon": False, "legend.labelcolor": self.ink_secondary,
-                "lines.linewidth": 2, "font.size": 9,
-            }
-        )  # fmt: skip
-
-    def category_colors(self, categories: list[str]) -> dict[str, str]:
-        """Slot per category by sorted name, so colour follows the entity."""
-        return {c: self.series[i % len(self.series)] for i, c in enumerate(sorted(categories))}
 
 
 class EdaPlotter:
     """Phase 1 EDA charts over the panel; every method returns a Figure.
 
-    `save()` writes PNGs to the figures folder passed in at construction.
+    Saving is left to FigureStore.
     """
 
-    def __init__(self, style: PlotStyle, figures_dir: Path) -> None:
+    def __init__(self, style: PlotStyle) -> None:
         self._style = style
-        self._figures_dir = figures_dir
-
-    def save(self, fig: Figure, name: str) -> Path:
-        """Save fig as <figures_dir>/<name>.png and return the path."""
-        self._figures_dir.mkdir(parents=True, exist_ok=True)
-        path = self._figures_dir / f"{name}.png"
-        fig.savefig(path)
-        return path
 
     def coverage_heatmap(self, panel: pd.DataFrame) -> Figure:
         """Weekly log units per product, rows grouped by category; blank = no sales."""

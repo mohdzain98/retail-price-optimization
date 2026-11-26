@@ -10,7 +10,7 @@ else
   RUN := env PATH="$(abspath $(VENV))/bin:$$PATH"
 endif
 
-.PHONY: setup install hooks data-check prep lint format test check app
+.PHONY: setup install hooks data-check prep elasticity lint format test check app
 
 setup:  ## one-time setup: env, deps, .env, git hooks, data check
 	USE_UV=$(USE_UV) ./scripts/setup.sh
@@ -32,6 +32,9 @@ data-check:  ## verify raw dataset is in data/raw
 
 prep:  ## Phase 1: raw workbook -> data/processed/panel.parquet
 	$(RUN) python -m src.pipeline prep
+
+elasticity:  ## Phase 2: panel -> data/processed/elasticities*.parquet
+	$(RUN) python -m src.pipeline elasticity
 
 lint:
 	$(RUN) ruff check .

@@ -63,6 +63,13 @@ class TestConfig:
         with pytest.raises(ValidationError, match="stores"):
             Config.model_validate(raw)
 
+    def test_rejects_priority_model_not_fitted(self) -> None:
+        """Every model in model_priority must be fitted."""
+        raw = _raw()
+        raw["elasticity"]["models"] = ["ols_per_product"]
+        with pytest.raises(ValidationError, match="model_priority"):
+            Config.model_validate(raw)
+
     def test_rejects_unknown_canonical_column(self) -> None:
         """Mapping a raw column to a non-Col name fails."""
         raw = _raw()
