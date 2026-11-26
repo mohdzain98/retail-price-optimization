@@ -1,6 +1,7 @@
 # Checks that run on every commit. Same tools as `make check` / CI.
 # One-time setup:  make hooks      Run everywhere:  pre-commit run --all-files
-exclude: ^(archive/|data/)
+# archive notebook is still stripped; ruff skips archive/ via pyproject (--force-exclude)
+exclude: ^(data/|archive/.*\.csv$)
 
 repos:
   # General file hygiene
