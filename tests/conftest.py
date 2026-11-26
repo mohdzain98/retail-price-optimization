@@ -86,7 +86,7 @@ class SyntheticFrat:
                 "CATEGORY": [p.category for p in self.PRODUCTS.values()],
                 "SUB_CATEGORY": "SUB",
                 "PRODUCT_SIZE": "10 OZ",
-            }  # fmt: skip
+            }
         )
 
     def stores(self) -> pd.DataFrame:
@@ -97,7 +97,7 @@ class SyntheticFrat:
                 "STORE_NAME": [f"S{s}" for s in self.STORES],
                 "ADDRESS_STATE_PROV_CODE": "OH",
                 "SEG_VALUE_NAME": "MAINSTREAM",
-            }  # fmt: skip
+            }
         )
 
     def write_workbook(self, path: Path, sheet_names: dict[Sheet, str]) -> Path:
@@ -123,9 +123,12 @@ def loader_settings(tmp_path: Path, cfg: Config) -> LoaderSettings:
     """Loader settings pointing at a synthetic workbook in tmp_path."""
     raw_path = SyntheticFrat().write_workbook(tmp_path / cfg.data.raw_file, cfg.data.sheets)
     return LoaderSettings(
-        raw_path=raw_path, cache_dir=tmp_path / "cache", sheets=cfg.data.sheets,
-        columns=cfg.data.columns, header_row=cfg.data.header_row,
-    )  # fmt: skip
+        raw_path=raw_path,
+        cache_dir=tmp_path / "cache",
+        sheets=cfg.data.sheets,
+        columns=cfg.data.columns,
+        header_row=cfg.data.header_row,
+    )
 
 
 @pytest.fixture

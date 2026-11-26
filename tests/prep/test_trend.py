@@ -10,8 +10,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from src.config import Config
 from src.prep.trend import LowessTrend
-from src.schema import Col, Split
+from src.schema import Col, Split, driver_columns
 
 
 class TestLowessTrend:
@@ -21,7 +22,9 @@ class TestLowessTrend:
         """Shocking test-period units leaves every trend value unchanged."""
         shocked = panel.drop(columns=Col.LN_TREND)
         shocked.loc[shocked[Col.SPLIT] == Split.TEST, Col.LN_UNITS] += 5
-        retrended = LowessTrend(78).apply(shocked)
+        cfg = Config.load()
+        drivers = driver_columns(cfg.features.fourier_order, cfg.features.pantry_lags)
+        retrended = LowessTrend(cfg.trend.lowess_window_weeks, drivers).apply(shocked)
         key = [Col.UPC, Col.WEEK]
         np.testing.assert_allclose(
             panel.sort_values(key)[Col.LN_TREND].to_numpy(),
@@ -35,14 +38,14 @@ class TestLowessTrend:
         assert panel[Col.LN_TREND].notna().all()
 
     def test_short_series_falls_back_to_mean(self) -> None:
-        """Fewer than min_points train rows gives the train mean."""
+        """Fewer than min_points train rows gives the mean residual (zero without drivers)."""
         frame = pd.DataFrame(
             {
                 Col.UPC: 1,
                 Col.T: range(4),
                 Col.LN_UNITS: [1.0, 2.0, 3.0, 9.0],
                 Col.SPLIT: [Split.TRAIN] * 3 + [Split.TEST],
-            }  # fmt: skip
+            }
         )
         out = LowessTrend(78, min_points=5).apply(frame)
-        np.testing.assert_allclose(out[Col.LN_TREND], 2.0)
+        np.testing.assert_allclose(out[Col.LN_TREND], 0.0, atol=1e-12)  # mean residual

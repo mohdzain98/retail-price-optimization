@@ -47,20 +47,39 @@ split:
 features:
   fourier_order: 3
   holiday_country: US
+  # promo_flag = 1 when discount depth or the share of stores on feature/display reaches these
+  promo_min_discount: 0.05
+  promo_min_tactic_share: 0.25
+  pantry_lags: 3   # pl1..pl3: promo flag lagged 1-3 weeks (post-promo dip)
 
 trend:
-  # > 52 so the trend stays smoother than yearly seasonality (Fourier terms own that)
+  # LOESS of the residual of a per-product driver regression (RGMx), fitted on train weeks.
+  # Window > 52 so the trend stays smoother than yearly seasonality (Fourier terms own that).
   lowess_window_weeks: 78
 
 elasticity:
-  bounds: [-5.0, -0.3]
+  bounds: [-5.0, -0.3]         # regular (base) price elasticity, used by the optimizer
+  promo_bounds: [-8.0, -0.3]   # promo discount elasticity, used for promo planning
+  models: [ols_per_product, pooled_ols, mixed_effects, bayes_hierarchical]
+  # per product, the first model passing the quality gates is used (RGMx-style)
+  model_priority: [bayes_hierarchical, mixed_effects, ols_per_product]
+  quality:
+    max_mape: 0.3   # in-sample MAPE on units
+    min_r2: 0.45    # in-sample R^2 on log units, within product
+  # products failing every model take the median of valid estimates at the first level with one
+  imputation_levels: [[sub_category, manufacturer], [sub_category], [category]]
   bayes:
-    draws: 1000
-    tune: 1000
+    draws: 1500
+    tune: 1500   # r-hat was 1.012 at 1000/1000
     chains: 4
-    target_accept: 0.9
+    target_accept: 0.95   # 0.9 left 1 divergence with two slope hierarchies
     seed: 42
     hdi_prob: 0.94
+    prior_mean: -1.5        # regular price: typical grocery own-price elasticity
+    prior_sd: 1.0
+    promo_prior_mean: -2.5  # shoppers react more to temporary cuts
+    promo_prior_sd: 1.5
+    prior_group_sd: 0.5     # scale of category and product deviations
 
 cost:
   # cost = (1 - margin) * base_price; no cost column in the dataset

@@ -21,6 +21,9 @@ CONFIG_PATH = ROOT / "config" / "config.yaml"
 DATA_RAW = ROOT / "data" / "raw"
 DATA_PROCESSED = ROOT / "data" / "processed"
 PANEL_PATH = DATA_PROCESSED / "panel.parquet"
+ELASTICITY_PATH = DATA_PROCESSED / "elasticities.parquet"
+ELASTICITY_ALL_MODELS_PATH = DATA_PROCESSED / "elasticities_all_models.parquet"
+MODEL_COMPARISON_PATH = DATA_PROCESSED / "model_comparison.parquet"
 FIGURES = ROOT / "reports" / "figures"
 
 
@@ -52,6 +55,15 @@ class DemandForm(StrEnum):
 
     CONSTANT_ELASTICITY = "constant_elasticity"
     LINEAR = "linear"
+
+
+class ModelName(StrEnum):
+    """Registered elasticity models, from simplest to most advanced."""
+
+    OLS_PER_PRODUCT = "ols_per_product"
+    POOLED_OLS = "pooled_ols"
+    MIXED_EFFECTS = "mixed_effects"
+    BAYES_HIERARCHICAL = "bayes_hierarchical"
 
 
 class _Frozen(BaseModel):
@@ -104,10 +116,13 @@ class SplitConfig(_Frozen):
 
 
 class FeaturesConfig(_Frozen):
-    """Seasonality (Fourier order) and holiday calendar country."""
+    """Seasonality, holiday calendar, promo-flag thresholds and pantry-loading lags."""
 
     fourier_order: int
     holiday_country: str
+    promo_min_discount: float
+    promo_min_tactic_share: float
+    pantry_lags: int
 
 
 class TrendConfig(_Frozen):
@@ -117,7 +132,11 @@ class TrendConfig(_Frozen):
 
 
 class BayesConfig(_Frozen):
-    """PyMC sampler settings; `hdi_prob` sets credible-interval width."""
+    """PyMC sampler settings and priors; `hdi_prob` sets interval width.
+
+    Priors: global mean elasticity ~ Normal(prior_mean, prior_sd); category and
+    product deviations have HalfNormal(prior_group_sd) scales.
+    """
 
     draws: int
     tune: int
@@ -125,18 +144,36 @@ class BayesConfig(_Frozen):
     target_accept: float
     seed: int
     hdi_prob: float
+    prior_mean: float
+    prior_sd: float
+    promo_prior_mean: float
+    promo_prior_sd: float
+    prior_group_sd: float
+
+
+class QualityConfig(_Frozen):
+    """Per-product quality gates (RGMx-style) a model must pass to be used."""
+
+    max_mape: float
+    min_r2: float
 
 
 class ElasticityConfig(_Frozen):
-    """Elasticity guard-rails and Bayesian model settings.
+    """Elasticity models, selection priority, quality gates, bounds and imputation.
 
-    Estimates outside `bounds` are replaced with category-level imputation.
+    Per product, the first model in `model_priority` passing the gates is used;
+    otherwise the elasticity is imputed along `imputation_levels`.
     """
 
     bounds: tuple[float, float]
+    promo_bounds: tuple[float, float]
+    models: list[ModelName]
+    model_priority: list[ModelName]
+    quality: QualityConfig
+    imputation_levels: list[list[Col]]
     bayes: BayesConfig
 
-    @field_validator("bounds")
+    @field_validator("bounds", "promo_bounds")
     @classmethod
     def _negative_ordered(cls, v: tuple[float, float]) -> tuple[float, float]:
         """Require lower < upper < 0, since demand must fall as price rises."""
@@ -144,6 +181,14 @@ class ElasticityConfig(_Frozen):
         if not lo < hi < 0:
             raise ValueError("elasticity bounds must satisfy lower < upper < 0")
         return v
+
+    @model_validator(mode="after")
+    def _priority_is_fitted(self) -> ElasticityConfig:
+        """Every model in the priority list must be fitted."""
+        missing = [m for m in self.model_priority if m not in self.models]
+        if missing or not self.model_priority:
+            raise ValueError(f"model_priority {missing} not in models {self.models}")
+        return self
 
 
 class CostConfig(_Frozen):

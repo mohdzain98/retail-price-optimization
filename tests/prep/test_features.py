@@ -20,6 +20,9 @@ from src.prep.features import (
     FourierSeasonality,
     HolidayFlags,
     LogFeatures,
+    PantryLoading,
+    PromoFlag,
+    StoreCoverage,
     TimeSplit,
 )
 from src.schema import Col, Split
@@ -42,6 +45,57 @@ class TestLogFeatures:
         out = LogFeatures().apply(frame)
         np.testing.assert_allclose(out[Col.DISCOUNT_DEPTH], [0.2, 0.0])
         np.testing.assert_allclose(out[Col.LN_UNITS], np.log([10, 20]))
+        np.testing.assert_allclose(
+            out[Col.LN_BASE_PRICE] + out[Col.LN_PROMO_PRICE], out[Col.LN_PRICE]
+        )
+
+
+def _tactics(discount: list[float], feature: list[float]) -> pd.DataFrame:
+    """Frame with discount depth and tactic shares (display/F&D/TPR zero)."""
+    zeros = [0.0] * len(discount)
+    return pd.DataFrame(
+        {
+            Col.DISCOUNT_DEPTH: discount, Col.FEATURE: feature, Col.DISPLAY: zeros,
+            Col.FEATURE_DISPLAY: zeros, Col.TPR: zeros,
+        }
+    )  # fmt: skip
+
+
+class TestPromoFlag:
+    """PromoFlag marks deep-discount or merchandised weeks."""
+
+    def test_thresholds(self) -> None:
+        """A 10% cut or a 50% feature share is promo; a 2% cut alone is not."""
+        out = PromoFlag(0.05, 0.25).apply(_tactics([0.10, 0.02, 0.0], [0.0, 0.0, 0.5]))
+        assert out[Col.PROMO_FLAG].tolist() == [1, 0, 1]
+
+
+class TestPantryLoading:
+    """PantryLoading lags the promo flag within each product."""
+
+    def test_lags_per_product(self) -> None:
+        """pl1 is last week's flag, pl2 the week before; lags never cross products."""
+        frame = pd.DataFrame(
+            {
+                Col.UPC: [1, 1, 1, 2, 2],
+                Col.WEEK: pd.to_datetime(
+                    ["2010-01-02", "2010-01-09", "2010-01-16"] * 1 + ["2010-01-02", "2010-01-09"]
+                ),
+                Col.PROMO_FLAG: [1, 0, 0, 0, 1],
+            }
+        )
+        out = PantryLoading(2).apply(frame)
+        assert out["pl1"].tolist() == [0, 1, 0, 0, 0]
+        assert out["pl2"].tolist() == [0, 0, 1, 0, 0]
+
+
+class TestStoreCoverage:
+    """StoreCoverage adds the log store count."""
+
+    def test_values(self) -> None:
+        """ln_n_stores = log(n_stores)."""
+        out = StoreCoverage().apply(pd.DataFrame({Col.N_STORES: [1, 10]}))
+        np.testing.assert_allclose(out[Col.LN_N_STORES], np.log([1, 10]))
 
 
 class TestFourierSeasonality:
@@ -106,8 +160,15 @@ class TestFeatureBuilder:
                 Col.UNITS: 5,
                 Col.PRICE: 1.0,
                 Col.BASE_PRICE: 1.2,
-            }  # fmt: skip
+                Col.N_STORES: 3,
+                Col.FEATURE: 0.0,
+                Col.DISPLAY: 0.0,
+                Col.FEATURE_DISPLAY: 0.0,
+                Col.TPR: 0.0,
+                Col.UPC: 1,
+            }
         )
         out = FeatureBuilder([s.from_config(cfg) for s in FEATURE_STEPS]).build(frame)
-        assert {Col.LN_UNITS, Col.HOLIDAY_WEEK, Col.SPLIT, "sin_1"} <= set(out.columns)
+        expected = {Col.LN_UNITS, Col.PROMO_FLAG, "pl1", Col.HOLIDAY_WEEK, Col.SPLIT, "sin_1"}
+        assert expected <= set(out.columns)
         assert len(out) == len(frame)
