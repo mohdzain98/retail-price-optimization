@@ -1,6 +1,6 @@
 # Retail Price Optimization
 
-> 🚧 Work in progress: Phase 0 (setup) and Phase 1 (data prep) done; Phase 2 (elasticity) next. See the [implementation plan](docs/implementation_plan.md).
+> 🚧 Work in progress: Phases 0–2 done (setup, data prep, elasticity); Phase 3 (baseline) next.
 
 End-to-end **Revenue Growth Management (RGM)** pipeline on the dunnhumby *Breakfast at the Frat* dataset:
 
@@ -15,6 +15,7 @@ End-to-end **Revenue Growth Management (RGM)** pipeline on the dunnhumby *Breakf
 ```bash
 make setup        # one-time: env + deps, .env, git hooks, dataset check (scripts/setup.sh)
 make prep         # Phase 1: raw xlsx -> data/processed/panel.parquet
+make elasticity   # Phase 2: regular + promo elasticities, 4 models, RGMx-style selection (~4 min)
 make check        # lint + types + tests + pre-commit
 ```
 
@@ -34,11 +35,12 @@ src/                 pipeline package: prep/, utils/, config, schema, plots, pip
 notebooks/           thin presentation notebooks
 app/                 Streamlit app
 tests/               unit tests (math + constraints)
-docs/                project & implementation plans
+docs/                methodology, architecture, data
 archive/             original 2022 ANN notebook
 ```
 
 ## Docs
 
-- [Project plan](docs/project_plan.md): problem framing, dataset choice, methodology
-- [Implementation plan](docs/implementation_plan.md): phase-by-phase tasks
+- [Methodology](docs/methodology.md): what each step computes and why, results, limitations and sources
+- [Architecture](docs/architecture.md): code layout, data flow, extension points
+- [Data](docs/data.md): getting the dataset, raw schema, processed outputs

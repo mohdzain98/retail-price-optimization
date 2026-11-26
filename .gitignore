@@ -24,3 +24,6 @@ data/processed/*
 # Env + logs
 .env
 .cache/
+
+# Internal planning notes (kept locally, not published)
+docs/plans
