@@ -1,0 +1,54 @@
+# Data
+
+## Getting the dataset
+
+The project uses dunnhumby's **Breakfast at the Frat** dataset. It is free but licensed, so it is not included in
+this repository.
+
+1. Open [dunnhumby source files](https://www.dunnhumby.com/source-files/) and choose *Breakfast at the Frat*. A short
+   form is required.
+2. Put `dunnhumby - Breakfast at the Frat.xlsx` in `data/raw/`.
+3. Run `make data-check` to confirm the file and its sheets match `config/config.yaml`.
+
+`data/raw/` and `data/processed/` are git-ignored, so the data cannot be committed by accident.
+
+## Raw workbook
+
+Each sheet has a title row above the header; the loader detects the header automatically. Raw columns are renamed
+to canonical names through `data.columns` in the config.
+
+| Sheet | Grain | Columns used |
+|---|---|---|
+| `dh Transaction Data` | store × UPC × week (524,950 rows) | `WEEK_END_DATE`, `STORE_NUM`, `UPC`, `UNITS`, `VISITS`, `HHS`, `SPEND`, `PRICE`, `BASE_PRICE`, `FEATURE`, `DISPLAY`, `TPR_ONLY` |
+| `dh Products Lookup` | UPC | `UPC`, `DESCRIPTION`, `MANUFACTURER`, `CATEGORY`, `SUB_CATEGORY`, `PRODUCT_SIZE` |
+| `dh Store Lookup` | store | `STORE_ID`, `STORE_NAME`, `ADDRESS_STATE_PROV_CODE`, `SEG_VALUE_NAME` |
+
+`FEATURE` means the product was in the in-store circular, `DISPLAY` means it was on in-store display, and `TPR_ONLY`
+means a temporary price reduction with neither feature nor display.
+
+## Processed outputs
+
+All files are in `data/processed/`. Column names are defined once, in `src/schema.py` (`Col`).
+
+### `panel.parquet`: one row per product × week (8,304 rows, 55 products, 156 weeks)
+
+| Group | Columns |
+|---|---|
+| Keys | `upc`, `week` |
+| Sales | `units`, `spend`, `visits`, `hhs`, `n_stores` |
+| Price | `price` (spend ÷ units), `base_price` |
+| Promotion | `feature`, `display`, `feature_display`, `tpr`: share of selling stores, 0–1; `promo_flag` (0/1); `pl1..pl3`: promo flag lagged 1–3 weeks |
+| Product | `description`, `manufacturer`, `category`, `sub_category`, `product_size` |
+| Eligibility | `eligible`, `filter_reason` |
+| Model features | `ln_units`, `ln_price` = `ln_base_price` + `ln_promo_price`, `discount_depth`, `ln_n_stores`, `sin_1..3`, `cos_1..3`, `holiday_week`, `thanksgiving`, `christmas`, `super_bowl`, `ln_trend` (residual LOESS trend) |
+| Time | `t` (week index), `split` (`train` / `test`) |
+
+### Elasticity outputs
+
+| File | Content |
+|---|---|
+| `elasticities.parquet` | Final table, one row per product. Regular: `elasticity`, `elasticity_low`, `elasticity_high` (94% interval), `elasticity_source`, `impute_reason`. Promo: `promo_elasticity`, `promo_elasticity_low`, `promo_elasticity_high`, `promo_source`, `promo_impute_reason`. Also `model` (the selected model, empty if imputed), `train_mape`, `train_r2`, and product attributes |
+| `elasticities_all_models.parquet` | Every model's estimates, intervals, `train_mape`, `train_r2` and `passes_gates` per product (long format) |
+| `model_comparison.parquet` | Per model: holdout WAPE, median regular elasticity, share within bounds, share passing gates, fit time |
+| `elasticity_draws.parquet` | Bayesian posterior draws per product (`draw`, `upc`, `elasticity`, `promo_elasticity`) |
+| `raw_*.parquet` | Cache of the three raw sheets |
