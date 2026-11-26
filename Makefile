@@ -1,7 +1,6 @@
-# Uses uv when installed; otherwise falls back to python -m venv + pip.
+# Uses uv when installed; otherwise the .venv created by scripts/setup.sh (pip).
 # Force the pip path with:  make setup USE_UV=0
 
-PYTHON ?= python3
 VENV   ?= .venv
 USE_UV ?= $(if $(shell command -v uv 2>/dev/null),1,0)
 
@@ -11,19 +10,19 @@ else
   RUN := env PATH="$(abspath $(VENV))/bin:$$PATH"
 endif
 
-.PHONY: setup hooks data-check lint format test check app
+.PHONY: setup install hooks data-check prep lint format test check app
 
-setup:  ## create env, install deps + pre-commit hooks
+setup:  ## one-time setup: env, deps, .env, git hooks, data check
+	USE_UV=$(USE_UV) ./scripts/setup.sh
+
+install:  ## dependencies only (no hooks, no .env)
 ifeq ($(USE_UV),1)
 	uv sync
 else
-	@echo "uv not found -> using $(PYTHON) venv + pip (requires Python 3.11 or 3.12)"
-	$(PYTHON) -m venv $(VENV)
-	$(VENV)/bin/pip install --upgrade pip
-	$(VENV)/bin/pip install -r requirements.txt -r requirements-dev.txt
-	$(VENV)/bin/pip install -e . --no-deps
+	python3 -m venv $(VENV)
+	$(VENV)/bin/pip install -r requirements-dev.txt
+	$(VENV)/bin/pip install --no-deps -e .
 endif
-	$(MAKE) hooks
 
 hooks:  ## install pre-commit git hooks
 	$(RUN) pre-commit install
@@ -31,9 +30,13 @@ hooks:  ## install pre-commit git hooks
 data-check:  ## verify raw dataset is in data/raw
 	$(RUN) python scripts/check_data.py
 
+prep:  ## Phase 1: raw workbook -> data/processed/panel.parquet
+	$(RUN) python -m src.pipeline prep
+
 lint:
 	$(RUN) ruff check .
 	$(RUN) ruff format --check .
+	$(RUN) mypy
 
 format:
 	$(RUN) ruff check --fix .
@@ -42,7 +45,7 @@ format:
 test:
 	$(RUN) pytest
 
-check: lint test  ## lint + tests + pre-commit hooks
+check: lint test  ## lint + types + tests + pre-commit hooks
 	$(RUN) pre-commit run --all-files
 
 app:
