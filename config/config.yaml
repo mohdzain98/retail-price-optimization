@@ -7,8 +7,35 @@ data:
     transactions: "dh Transaction Data"
     products: "dh Products Lookup"
     stores: "dh Store Lookup"
-  header_row: 1  # 0-based; release has a title row above the header
+  header_row: null  # 0-based; null = auto-detect (release may have a title row)
   grain: product_week  # product_week | store_product_week
+  # raw column name -> canonical name; verify against the downloaded file
+  columns:
+    transactions:
+      WEEK_END_DATE: week
+      STORE_NUM: store
+      UPC: upc
+      UNITS: units
+      VISITS: visits
+      HHS: hhs
+      SPEND: spend
+      PRICE: price
+      BASE_PRICE: base_price
+      FEATURE: feature
+      DISPLAY: display
+      TPR_ONLY: tpr
+    products:
+      UPC: upc
+      DESCRIPTION: description
+      MANUFACTURER: manufacturer
+      CATEGORY: category
+      SUB_CATEGORY: sub_category
+      PRODUCT_SIZE: product_size
+    stores:
+      STORE_ID: store
+      STORE_NAME: store_name
+      ADDRESS_STATE_PROV_CODE: state
+      SEG_VALUE_NAME: segment
 
 filters:
   min_weeks: 52
@@ -22,7 +49,8 @@ features:
   holiday_country: US
 
 trend:
-  lowess_frac: 0.3
+  # > 52 so the trend stays smoother than yearly seasonality (Fourier terms own that)
+  lowess_window_weeks: 78
 
 elasticity:
   bounds: [-5.0, -0.3]
