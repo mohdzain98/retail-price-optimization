@@ -14,6 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history, so the PR can be diffed against its base branch
+
+      - name: No data, secrets or oversized files in the PR
+        run: python3 scripts/check_pr_files.py --base origin/${{ github.base_ref }}
 
       - uses: astral-sh/setup-uv@v5
         with:

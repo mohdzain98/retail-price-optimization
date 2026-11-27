@@ -1,4 +1,4 @@
-"""Turns raw model estimates into the final elasticity table (RGMx-style post-processing).
+"""Turns raw model estimates into the final elasticity table (standard RGM post-processing).
 
 QualityGates scores each model per product (in-sample MAPE, R^2, bounds);
 ModelSelector takes, per product, the first model in priority order that passes;

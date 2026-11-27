@@ -1,7 +1,7 @@
 """Pricing-direction rule check: does each recommendation follow the objective's rule?
 
 A product's own optimum (no portfolio constraints) is P* = c_eff * beta / (1 + beta)
-for beta < -1, else the upper bound. With revenue (c_eff = 0) this is the RGMx rule:
+for beta < -1, else the upper bound. With revenue (c_eff = 0) this is the classic revenue rule:
 elastic -> cut, inelastic -> raise. With profit it is margin-aware (|beta| vs 1/margin).
 """
 

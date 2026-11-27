@@ -53,7 +53,7 @@ features:
   pantry_lags: 3   # pl1..pl3: promo flag lagged 1-3 weeks (post-promo dip)
 
 trend:
-  # LOESS of the residual of a per-product driver regression (RGMx), fitted on train weeks.
+  # LOESS of the residual of a per-product driver regression, fitted on train weeks.
   # Window > 52 so the trend stays smoother than yearly seasonality (Fourier terms own that).
   lowess_window_weeks: 78
 
@@ -61,7 +61,7 @@ elasticity:
   bounds: [-5.0, -0.3]         # regular (base) price elasticity, used by the optimizer
   promo_bounds: [-8.0, -0.3]   # promo discount elasticity, used for promo planning
   models: [ols_per_product, pooled_ols, mixed_effects, bayes_hierarchical]
-  # per product, the first model passing the quality gates is used (RGMx-style)
+  # per product, the first model passing the quality gates is used
   model_priority: [bayes_hierarchical, mixed_effects, ols_per_product]
   quality:
     max_mape: 0.3   # in-sample MAPE on units
@@ -94,7 +94,7 @@ optimization:
   # solved one after another and stored side by side (simulator can switch); first is the default
   objectives: [profit, revenue]  # profit | revenue | weighted
   profit_weight: 1.0  # used when objective = weighted
-  demand_form: constant_elasticity  # constant_elasticity | linear (linear is the RGMx/article formula)
+  demand_form: constant_elasticity  # constant_elasticity | linear (linear is the common first-order formula)
   price_bounds: [0.8, 1.2]  # multipliers of the current regular price
   volume_floor: 0.95  # portfolio baseline volume >= floor * current
   max_avg_price_increase: 0.05  # revenue-weighted average price change <= +5%
@@ -110,7 +110,7 @@ optimization:
   seed: 42
 
 baseline:
-  # RGMx top-down baseline: exp(ln_units - price - promo - pantry - promo-week error effects)
+  # Top-down baseline: exp(ln_units - price - promo - pantry - promo-week error effects)
   rolling_window: 7            # centred rolling mean used to repair bad promo-week baselines
   max_base_to_volume: 1.5      # rule 3: baseline above 1.5x actual volume is implausible
   neighbor_drop_ratio: 0.75    # rule 6: promo-week baseline below 75% of a neighbour

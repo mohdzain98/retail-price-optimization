@@ -1,4 +1,4 @@
-"""Tests for src.baseline.rules: each RGMx rule and the corrector's precedence.
+"""Tests for src.baseline.rules: each bad-baseline rule and the corrector's precedence.
 
 Small hand-built series make each rule fire (or not) on a known week; the
 corrector must prefer rolling-mean fixes over actual-volume fixes.

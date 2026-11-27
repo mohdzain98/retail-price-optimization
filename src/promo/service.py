@@ -36,6 +36,7 @@ from src.promo.candidates import (
 from src.promo.forecast import BaselineForecaster, ForecastBacktest, FutureCalendar
 from src.promo.forecasters import FORECASTERS, ForecastContext, SeasonalIndex
 from src.promo.frontier import BudgetFrontier
+from src.promo.kpis import HorizonKpis
 from src.promo.planner import PLANNERS, LastYearCalendar, PlanRules, PromoPlanner
 from src.schema import Col, Metric, Planner, PromoScenario, Scenario, kpi_col
 from src.utils import AppLogger
@@ -50,7 +51,6 @@ PLAN_SCENARIOS: dict[Planner, PromoScenario] = {
     Planner.GREEDY: PromoScenario.GREEDY_PLAN,
     Planner.MILP: PromoScenario.MILP_PLAN,
 }
-TOTALS: tuple[Col, ...] = (Col.VOLUME, Col.REVENUE, Col.PROFIT)
 
 
 @dataclass(frozen=True)
@@ -183,7 +183,9 @@ class PromoService:
             "candidates": candidates.assign(**tag),
             "plan": plan.assign(**tag),
             "frontier": frontier.assign(**tag),
-            "summary": self._summary(forecast, recs, plans).assign(**tag),
+            "summary": HorizonKpis()
+            .summary(forecast, recs, {s.value: p for s, p in plans.items()})
+            .assign(**tag),
         }
 
     def _plans(
@@ -230,40 +232,6 @@ class PromoService:
             dip = np.exp(table[Col.UPC].map(effects.pantry[col]).fillna(0.0))
             units = units * np.where(after > 0, dip, 1.0)
         return table.assign(**{Col.PLAN_UNITS: units})
-
-    @staticmethod
-    def _summary(
-        forecast: pd.DataFrame, recs: pd.DataFrame, plans: Mapping[PromoScenario, pd.DataFrame]
-    ) -> pd.DataFrame:
-        """Horizon totals per scenario and % change against current prices with no promo."""
-        prices = recs.set_index(Col.UPC)
-        upc = forecast[Col.UPC]
-        cost = upc.map(prices[Col.UNIT_COST])
-
-        def no_promo(volume: pd.Series, price: pd.Series) -> dict[Col, float]:
-            return {Col.VOLUME: volume.sum(), Col.REVENUE: (volume * price).sum(),
-                    Col.PROFIT: (volume * (price - cost)).sum(), Col.TRADE_SPEND: 0.0,
-                    Col.N_PROMOS: 0}  # fmt: skip
-
-        current = no_promo(forecast[Col.FORECAST_CURRENT], upc.map(prices[Col.CURRENT_PRICE]))
-        regular = no_promo(forecast[Col.FORECAST_BASELINE], upc.map(prices[Col.REGULAR_PRICE]))
-        rows = {
-            PromoScenario.CURRENT_NO_PROMO: current,
-            PromoScenario.RECOMMENDED_NO_PROMO: regular,
-        }
-        for scenario, plan in plans.items():
-            rows[scenario] = {
-                Col.VOLUME: regular[Col.VOLUME] + plan[Col.INCREMENTAL].sum(),
-                Col.REVENUE: regular[Col.REVENUE] + plan[Col.INCREMENTAL_REVENUE].sum(),
-                Col.PROFIT: regular[Col.PROFIT] + plan[Col.INCREMENTAL_PROFIT].sum(),
-                Col.TRADE_SPEND: plan[Col.TRADE_SPEND].sum(),
-                Col.N_PROMOS: len(plan),
-            }
-        frame = pd.DataFrame.from_dict(rows, orient="index").rename_axis(Col.SCENARIO).reset_index()
-        frame[Col.SCENARIO] = frame[Col.SCENARIO].map(lambda s: PromoScenario(s).value)
-        for col in TOTALS:
-            frame[f"{col.value}_change"] = frame[col] / current[col] - 1
-        return frame
 
     def _write(self, report: PromoReport) -> None:
         """Persist every table as parquet."""

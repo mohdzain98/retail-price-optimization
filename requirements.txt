@@ -16,5 +16,5 @@ highspy
 xgboost
 holidays
 matplotlib
-plotly
-streamlit
+altair
+streamlit>=1.67

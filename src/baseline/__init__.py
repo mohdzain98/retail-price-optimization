@@ -1,4 +1,4 @@
-"""Baseline layer (Phase 3): RGMx top-down baseline and due-to decomposition.
+"""Baseline layer (Phase 3): top-down baseline and due-to decomposition.
 
 effects.py (effect terms with each product's model), rules.py (bad-baseline rules
 and corrector), decomposition.py (incremental lifts, product summary), service.py

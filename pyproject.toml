@@ -3,6 +3,8 @@ name = "retail-price-promo-optimization"
 version = "0.1.0"
 description = "Retail price and promo optimization (RGM): Bayesian elasticity, baseline, NLopt pricing, forecasting and MILP promo planning"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pandas>=2.2",
@@ -21,8 +23,8 @@ dependencies = [
     "xgboost>=3.0",
     "holidays>=0.50",
     "matplotlib>=3.8",
-    "plotly>=5.20",
-    "streamlit>=1.35",
+    "altair>=5.0",
+    "streamlit>=1.67",
     "python-dotenv>=1.2.4",
     "rich>=15.0.0",
 ]
@@ -57,7 +59,8 @@ addopts = "-q"
 
 [tool.mypy]
 python_version = "3.12"
-files = ["src", "scripts", "tests"]
+files = ["src", "scripts", "tests", "app"]
+mypy_path = "app"
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 check_untyped_defs = true

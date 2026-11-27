@@ -95,7 +95,7 @@ class StoreCoverage(FeatureStep):
 class PromoFlag(FeatureStep):
     """Flags promo weeks: discount depth or feature/display share above thresholds.
 
-    Mirrors the RGMx promo flag (price/EDLP below threshold or promo ACV above one).
+    Standard RGM promo flag (price/EDLP below threshold or promo ACV above one).
     """
 
     name = "promo_flag"
@@ -122,7 +122,7 @@ class PromoFlag(FeatureStep):
 class PantryLoading(FeatureStep):
     """Adds pl1..plN: the promo flag lagged 1..N weeks within each series.
 
-    Captures the post-promotion dip as shoppers use up stock bought on deal (RGMx).
+    Captures the post-promotion dip as shoppers use up stock bought on deal.
     """
 
     name = "pantry_loading"

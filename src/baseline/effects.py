@@ -1,4 +1,4 @@
-"""Top-down effect terms per product-week (RGMx `04_calculate_baseline`).
+"""Top-down effect terms per product-week (standard top-down RGM decomposition).
 
 Each product's volume is decomposed with its selected elasticity model (or the
 first model in priority if none passed the gates). The effects removed from actual

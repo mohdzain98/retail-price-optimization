@@ -1,8 +1,8 @@
-"""NLopt solver wrapper and price-point rounding.
+"""NLopt solver wrapper, price-point rounding and the recommended-price step.
 
 NloptSolver maximises a PricingProblem over relative prices with any configured
-NLopt algorithm, passing analytic gradients to gradient-based ones and vector
-constraints in fc(r) <= 0 form. PricePointRounder snaps prices to endings like .99.
+NLopt algorithm (analytic gradients, constraints in fc(r) <= 0 form). Rounder, repair
+and PriceRecommender turn an optimum into shelf prices that never score below current.
 """
 
 from __future__ import annotations
@@ -224,3 +224,36 @@ class FeasibilityRepair:
         candidate = prices.copy()
         candidate[i] = self._rounder.step_toward(prices[i], p0[i])
         return problem.max_violation(candidate / p0), candidate
+
+
+@dataclass(frozen=True)
+class Recommendation:
+    """Rounded relative prices and whether the safeguard reverted them to current."""
+
+    ratios: np.ndarray
+    safeguard_applied: bool
+
+
+class PriceRecommender:
+    """Rounds an optimum to price points, repairs feasibility and applies the safeguard.
+
+    Falls back to current prices (and logs a warning) if the rounded prices score
+    below current on the problem's objective or break a constraint.
+    """
+
+    def __init__(self, rounder: PricePointRounder, repair: FeasibilityRepair) -> None:
+        self._rounder = rounder
+        self._repair = repair
+
+    def recommend(self, problem: PricingProblem, optimal: np.ndarray) -> Recommendation:
+        """Shelf-price ratios for `optimal` (relative prices from a solver)."""
+        p0, inputs, demand = problem.inputs.p0, problem.inputs, problem.demand
+        lo, hi = (b * p0 for b in problem.bounds)
+        prices = self._repair.repair(problem, self._rounder.round(optimal * p0, lo, hi))
+        ratios = prices / p0
+        value, _ = problem.objective.value_and_grad(ratios, inputs, demand)
+        current, _ = problem.objective.value_and_grad(np.ones(problem.n), inputs, demand)
+        if value < current or problem.max_violation(ratios) > CONSTRAINT_TOL * 10:
+            logger.warning("Rounded prices score below current; keeping current prices")
+            return Recommendation(np.ones(problem.n), safeguard_applied=True)
+        return Recommendation(ratios, safeguard_applied=False)

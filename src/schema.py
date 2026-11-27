@@ -178,7 +178,7 @@ class Family(StrEnum):
 
 
 class EffectTerm(StrEnum):
-    """Top-down baseline effect terms (RGMx): removed from actual log volume."""
+    """Top-down baseline effect terms: removed from actual log volume."""
 
     PRICE = "price"
     PROMO = "promo"

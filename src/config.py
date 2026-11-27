@@ -38,6 +38,8 @@ PROMO_PLAN_PATH = DATA_PROCESSED / "promo_plan.parquet"
 BUDGET_FRONTIER_PATH = DATA_PROCESSED / "budget_frontier.parquet"
 PROMO_SUMMARY_PATH = DATA_PROCESSED / "promo_summary.parquet"
 FIGURES = ROOT / "reports" / "figures"
+USERS_DB_PATH = ROOT / "data" / "users.db"  # local simulator accounts (gitignored)
+DOCS = ROOT / "docs"
 
 
 class Grain(StrEnum):
@@ -173,7 +175,7 @@ class BayesConfig(_Frozen):
 
 
 class QualityConfig(_Frozen):
-    """Per-product quality gates (RGMx-style) a model must pass to be used."""
+    """Per-product quality gates a model must pass to be used."""
 
     max_mape: float
     min_r2: float
@@ -260,7 +262,7 @@ class OptimizationConfig(_Frozen):
 
 
 class BaselineConfig(_Frozen):
-    """Top-down baseline and RGMx bad-baseline correction settings.
+    """Top-down baseline and bad-baseline correction settings.
 
     Rules flag weeks where the raw baseline is implausible; see src/baseline/rules.py.
     """

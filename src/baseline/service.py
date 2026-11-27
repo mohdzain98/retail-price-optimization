@@ -46,7 +46,7 @@ class BaselineReport:
 
 
 class BaselineService:
-    """Facade: effect terms, RGMx bad-baseline fixes, due-to lifts, outputs.
+    """Facade: effect terms, bad-baseline fixes, due-to lifts, outputs.
 
     Inputs are the prepared panel and the final elasticity table.
     """

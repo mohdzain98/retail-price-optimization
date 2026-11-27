@@ -142,3 +142,66 @@ def panel(cfg: Config, loader_settings: LoaderSettings, tmp_path: Path) -> pd.Da
     """Full Phase 1 panel built end to end through the factory."""
     service = DataPrepFactory(cfg, loader_settings, tmp_path / "panel.parquet").build()
     return service.run()
+
+
+@pytest.fixture(scope="session")
+def processed_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Phase 4 and Phase 5 outputs from the synthetic dataset, written like data/processed.
+
+    Runs the real optimization and promo services (stub lift model, short horizon) so
+    simulator and app tests read the same files the pipeline writes.
+    """
+    from src.config import ModelName
+    from src.optimization import OptimizationFactory, OptimizationOutputs
+    from src.optimization.inputs import PRODUCT_ATTRS
+    from src.promo import PromoFactory, PromoOutputs
+    from src.schema import Col, ElasticitySource
+    from src.simulator.data import SOURCES
+    from tests.promo.conftest import LinearLift
+
+    root = tmp_path_factory.mktemp("processed")
+    base = Config.load()
+    settings = LoaderSettings(
+        raw_path=SyntheticFrat().write_workbook(root / base.data.raw_file, base.data.sheets),
+        cache_dir=root / "cache",
+        sheets=base.data.sheets,
+        columns=base.data.columns,
+        header_row=base.data.header_row,
+    )
+    panel = DataPrepFactory(base, settings, root / "panel.parquet").build().run()
+    cfg = base.model_copy(
+        update={
+            "optimization": base.optimization.model_copy(update={"robustness_draws": 3}),
+            "promo": base.promo.model_copy(update={"frontier_points": 4, "budget": 20_000.0}),
+            "forecast": base.forecast.model_copy(update={"horizon_weeks": 8}),
+        }
+    )
+    baseline = panel.assign(**{Col.BASELINE: panel[Col.UNITS] * 0.8})
+    final = (
+        panel.drop_duplicates(Col.UPC)[list(PRODUCT_ATTRS)]
+        .assign(
+            **{
+                Col.ELASTICITY: -1.8,
+                Col.ELASTICITY_LOW: -2.3,
+                Col.ELASTICITY_HIGH: -1.3,
+                Col.ELASTICITY_SOURCE: ElasticitySource.ESTIMATED.value,
+                Col.MODEL: ModelName.BAYES_HIERARCHICAL.value,
+                Col.PROMO_ELASTICITY: -2.5,
+            }
+        )
+        .reset_index(drop=True)
+    )
+    name = {field: path.name for field, (path, _) in SOURCES.items()}
+    outputs = OptimizationOutputs(
+        root / name["recommendations"], root / name["optimization_summary"]
+    )
+    report = OptimizationFactory(cfg, outputs).build().run(baseline, final, pd.DataFrame())
+    promo_outputs = PromoOutputs(
+        *(root / name[f] for f in ("forecast", "backtest", "candidates", "plans", "frontier",
+                                   "promo_summary"))
+    )  # fmt: skip
+    models = {ModelName.BAYES_HIERARCHICAL: LinearLift()}
+    PromoFactory(cfg, models, promo_outputs).build().run(
+        panel, baseline, final, report.recommendations
+    )
+    return root

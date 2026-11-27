@@ -13,6 +13,9 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
+# Local simulator accounts (password hashes); created by `make user`
+data/users.db*
+
 # OS / editors
 .DS_Store
 .vscode/
