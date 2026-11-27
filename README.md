@@ -1,4 +1,4 @@
-# Retail Price Optimization
+# Retail Price & Promo Optimization
 
 > 🚧 Work in progress: Phases 0–5 done (setup, data prep, elasticity, baseline, NLopt price optimization, forecast + MILP promo budget); Phase 6 (Streamlit simulator) next.
 
