@@ -1,8 +1,8 @@
 """Phase 4 charts: recommended price changes, a profit-curve explainer and scenarios.
 
 Price changes show each product's recommended move with its robustness range
-(5th-95th percentile across elasticity draws). The profit curve contrasts the
-constant-elasticity and linear demand curves for one product.
+(5th-95th percentile across elasticity draws). The objective curve contrasts the
+constant-elasticity and linear demand curves for one product and one objective.
 """
 
 from __future__ import annotations
@@ -50,42 +50,42 @@ class OptimizationPlotter:
         )
         return fig
 
-    def profit_curve(self, recs: pd.DataFrame, upc: int, bounds: tuple[float, float]) -> Figure:
-        """Weekly profit vs price for one product under constant and linear demand.
+    def objective_curve(self, recs: pd.DataFrame, upc: int, bounds: tuple[float, float]) -> Figure:
+        """Objective value vs price for one product (one objective's rows) under both curves.
 
+        Plots sum((P - c_eff) Q): profit for the profit objective, revenue for revenue.
         Marks the current price, the product's own optimum and the portfolio recommendation.
         """
         row = recs.set_index(Col.UPC).loc[upc]
-        p0, base, beta, cost = (
-            row[c] for c in (Col.CURRENT_PRICE, Col.BASE_VOLUME, Col.ELASTICITY, Col.UNIT_COST)
-        )
+        p0, base, beta = (row[c] for c in (Col.CURRENT_PRICE, Col.BASE_VOLUME, Col.ELASTICITY))
+        c_eff, objective = row[Col.EFFECTIVE_COST], row[Col.OBJECTIVE]
         prices = np.linspace(0.7 * p0, 1.3 * p0, CURVE_POINTS)
-        r = prices / p0
-        constant = (prices - cost) * base * r**beta
-        linear = (prices - cost) * np.maximum(base * (1 + beta * (r - 1)), 0)
+
+        def value(price: np.ndarray) -> np.ndarray:
+            return (price - c_eff) * base * (price / p0) ** beta
+
+        linear = (prices - c_eff) * np.maximum(base * (1 + beta * (prices / p0 - 1)), 0)
         fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
-        ax.axvspan(
-            bounds[0] * p0, bounds[1] * p0, color=self._style.grid, alpha=0.5, label="allowed range"
+        low, high = bounds[0] * p0, bounds[1] * p0
+        ax.axvspan(low, high, color=self._style.grid, alpha=0.5, label="allowed range")
+        ax.plot(
+            prices, value(prices), color=self._style.series[0], label="constant elasticity (used)"
         )
-        ax.plot(prices, constant, color=self._style.series[0], label="constant elasticity (used)")
         ax.plot(prices, linear, color=self._style.series[1], linestyle="--", label="linear formula")
-        for scenario, marker in ((Scenario.CURRENT, "o"), (Scenario.RECOMMENDED, "D")):
-            price = row[kpi_col(scenario, Metric.PRICE)]
-            profit = row[kpi_col(scenario, Metric.PROFIT)]
-            label = f"{scenario.value} ${price:.2f}"
-            ax.scatter(
-                [price], [profit], color=self._style.ink, marker=marker, zorder=3, label=label
-            )
-        if beta < -1:  # own optimum P* = c * beta / (1 + beta), clipped to the bounds
-            own = float(np.clip(cost * beta / (1 + beta), bounds[0] * p0, bounds[1] * p0))
-            own_profit = (own - cost) * base * (own / p0) ** beta
-            ax.scatter([own], [own_profit], color=self._style.series[0], marker="^", s=60,
-                       zorder=3, label=f"own optimum ${own:.2f}")  # fmt: skip
-        ax.set_xlabel("regular price ($)")
-        ax.set_ylabel("weekly profit ($)")
-        ax.set_title(
-            f"{row[Col.DESCRIPTION]} {row[Col.PRODUCT_SIZE]}  (β = {beta:.2f})", loc="left"
+        points = (
+            ("current", row[Col.CURRENT_PRICE], "o", self._style.ink),
+            ("own optimum", row[Col.OWN_OPTIMAL_PRICE], "^", self._style.series[0]),
+            ("recommended", row[kpi_col(Scenario.RECOMMENDED, Metric.PRICE)], "D", self._style.ink),
         )
+        for label, price, marker, color in points:
+            ax.scatter([price], [value(np.array(price))], color=color, marker=marker, s=50,
+                       zorder=3, label=f"{label} ${price:.2f}")  # fmt: skip
+        ax.set_xlabel("regular price ($)")
+        ax.set_ylabel(f"weekly {objective} ($)")
+        title = (
+            f"{row[Col.DESCRIPTION]} {row[Col.PRODUCT_SIZE]}  (β = {beta:.2f}, goal: {objective})"
+        )
+        ax.set_title(title, loc="left")
         ax.legend(loc="lower center", fontsize=8)
         return fig
 

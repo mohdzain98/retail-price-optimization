@@ -1,8 +1,9 @@
 """Facade and composition root for the optimization layer (Phase 4).
 
-OptimizationService builds inputs, solves the portfolio problem with every configured
-NLopt algorithm, rounds the primary solution to price points, scores the linear
-formula on the true curve, measures robustness and writes the recommendations.
+For every configured objective (e.g. profit and revenue) OptimizationService solves
+the portfolio with each NLopt algorithm, rounds to price points with a feasibility
+repair and a never-worse-than-current safeguard, scores the linear formula, checks
+the pricing-direction rule and robustness, and writes both side by side.
 """
 
 from __future__ import annotations
@@ -14,12 +15,20 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.config import OPTIMIZATION_SUMMARY_PATH, RECOMMENDATIONS_PATH, Config, DemandForm
+from src.config import (
+    OPTIMIZATION_SUMMARY_PATH,
+    RECOMMENDATIONS_PATH,
+    Config,
+    DemandForm,
+    Objective,
+)
+from src.optimization.checks import DirectionRuleCheck
 from src.optimization.demand import DEMAND_CURVES, DemandCurve
 from src.optimization.inputs import InputsBuilder, OptimizationInputs, PackSizeParser
-from src.optimization.problem import KpiCalculator, ProblemBuilder
+from src.optimization.problem import KpiCalculator, PricingProblem, ProblemBuilder
 from src.optimization.robustness import RobustnessAnalyzer
 from src.optimization.solver import (
+    CONSTRAINT_TOL,
     FeasibilityRepair,
     NloptSolver,
     PricePointRounder,
@@ -46,7 +55,7 @@ class OptimizationOutputs:
 
 @dataclass(frozen=True)
 class OptimizationReport:
-    """Per-product recommendations and one summary row per scenario/algorithm."""
+    """Per-product recommendations and summary rows, one block per objective."""
 
     recommendations: pd.DataFrame
     summary: pd.DataFrame
@@ -62,23 +71,34 @@ class OptimizationParts:
     rounder: PricePointRounder
     repair: FeasibilityRepair
     robustness: RobustnessAnalyzer
+    rules: DirectionRuleCheck
+
+
+@dataclass(frozen=True)
+class _Recommended:
+    """Rounded relative prices and whether the safeguard reverted them to current."""
+
+    ratios: np.ndarray
+    safeguard_applied: bool
 
 
 class OptimizationService:
-    """Facade: inputs -> solve (all algorithms) -> round -> linear check -> robustness -> write.
+    """Facade: per objective, solve -> round -> safeguard -> checks -> robustness; then write.
 
-    KPIs are weekly; the summary also reports annualised deltas.
+    KPIs are weekly and always report real profit (unit cost), whatever the objective.
     """
 
     def __init__(
         self,
         parts: OptimizationParts,
         demand: DemandCurve,
+        objectives: Sequence[Objective],
         annualize_weeks: int,
         outputs: OptimizationOutputs,
     ) -> None:
         self._parts = parts
         self._demand = demand
+        self._objectives = list(objectives)
         self._weeks = annualize_weeks
         self._outputs = outputs
         self._kpis = KpiCalculator()
@@ -86,39 +106,61 @@ class OptimizationService:
     def run(
         self, baseline: pd.DataFrame, final: pd.DataFrame, draws: pd.DataFrame
     ) -> OptimizationReport:
-        """Optimise, score and persist; returns the report."""
+        """Optimise every objective, stack the results and persist them."""
         inputs = self._parts.inputs.build(baseline, final)
-        results = [
-            s.solve(self._parts.problems.build(inputs, self._demand)) for s in self._parts.solvers
-        ]
-        ratios = self._scenario_ratios(inputs, results[0])
-        table = self._recommendations(inputs, ratios)
-        robust = self._parts.robustness.run(inputs, self._demand, draws)
-        table = table.merge(robust, on=Col.UPC, how="left")
-        summary = self._summary(inputs, ratios, results)
-        report = OptimizationReport(table, summary)
+        tables, summaries = [], []
+        for objective in self._objectives:
+            table, summary = self._solve(inputs, objective, draws)
+            tables.append(table.assign(**{Col.OBJECTIVE: objective.value}))
+            summaries.append(summary.assign(**{Col.OBJECTIVE: objective.value}))
+        report = OptimizationReport(
+            pd.concat(tables, ignore_index=True), pd.concat(summaries, ignore_index=True)
+        )
         self._write(report)
         return report
 
-    def _scenario_ratios(
-        self, inputs: OptimizationInputs, primary: SolveResult
-    ) -> dict[Scenario, np.ndarray]:
-        """Relative prices per scenario: current, optimal, rounded (repaired), linear optimum."""
-        problem = self._parts.problems.build(inputs, self._demand)
-        lo, hi = (b * inputs.p0 for b in problem.bounds)
-        rounded = self._parts.rounder.round(primary.ratios * inputs.p0, lo, hi)
-        rounded = self._parts.repair.repair(problem, rounded)
+    def _solve(
+        self, inputs: OptimizationInputs, objective: Objective, draws: pd.DataFrame
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Recommendations table and summary rows for one objective."""
+        logger.info("Optimizing", extra={"objective": objective.value})
+        problem = self._parts.problems.build(inputs, self._demand, objective)
+        results = [solver.solve(problem) for solver in self._parts.solvers]
+        recommended = self._recommended(problem, results[0].ratios)
         linear = DEMAND_CURVES.get(DemandForm.LINEAR)()
-        linear_result = self._parts.solvers[0].solve(self._parts.problems.build(inputs, linear))
-        return {
-            Scenario.CURRENT: np.ones(len(inputs.p0)),
-            Scenario.OPTIMAL: primary.ratios,
-            Scenario.RECOMMENDED: rounded / inputs.p0,
-            Scenario.LINEAR_FORMULA: linear_result.ratios,
+        linear_problem = self._parts.problems.build(inputs, linear, objective)
+        ratios = {
+            Scenario.CURRENT: np.ones(problem.n),
+            Scenario.OPTIMAL: results[0].ratios,
+            Scenario.RECOMMENDED: recommended.ratios,
+            Scenario.LINEAR_FORMULA: self._parts.solvers[0].solve(linear_problem).ratios,
         }
+        robust = self._parts.robustness.run(inputs, self._demand, draws, objective)
+        table = (
+            self._recommendations(inputs, ratios, recommended.safeguard_applied)
+            .merge(self._parts.rules.check(problem, recommended.ratios), on=Col.UPC)
+            .merge(robust, on=Col.UPC, how="left")
+        )
+        return table, self._summary(problem, ratios, results)
+
+    def _recommended(self, problem: PricingProblem, optimal: np.ndarray) -> _Recommended:
+        """Round to price points, repair feasibility, never score below current prices.
+
+        Falls back to current prices (and logs a warning) if rounding loses the gain.
+        """
+        p0, inputs, demand = problem.inputs.p0, problem.inputs, problem.demand
+        lo, hi = (b * p0 for b in problem.bounds)
+        prices = self._parts.repair.repair(problem, self._parts.rounder.round(optimal * p0, lo, hi))
+        ratios = prices / p0
+        value, _ = problem.objective.value_and_grad(ratios, inputs, demand)
+        current, _ = problem.objective.value_and_grad(np.ones(problem.n), inputs, demand)
+        if value < current or problem.max_violation(ratios) > CONSTRAINT_TOL * 10:
+            logger.warning("Rounded prices score below current; keeping current prices")
+            return _Recommended(np.ones(problem.n), safeguard_applied=True)
+        return _Recommended(ratios, safeguard_applied=False)
 
     def _recommendations(
-        self, inputs: OptimizationInputs, ratios: dict[Scenario, np.ndarray]
+        self, inputs: OptimizationInputs, ratios: dict[Scenario, np.ndarray], safeguard: bool
     ) -> pd.DataFrame:
         """Inputs plus weekly KPIs per scenario, all scored on the configured demand curve."""
         columns = {}
@@ -126,39 +168,35 @@ class OptimizationService:
             for metric, values in self._kpis.evaluate(inputs, self._demand, r).items():
                 columns[kpi_col(scenario, metric)] = values
         table = inputs.products.assign(**columns)
-        optimal_price = table[kpi_col(Scenario.RECOMMENDED, Metric.PRICE)]
+        recommended_price = table[kpi_col(Scenario.RECOMMENDED, Metric.PRICE)]
         return table.assign(
             **{
-                Col.PRICE_RATIO: optimal_price / table[Col.CURRENT_PRICE] - 1,
+                Col.PRICE_RATIO: recommended_price / table[Col.CURRENT_PRICE] - 1,
                 Col.LINEAR_FORMULA_PRICE: table[kpi_col(Scenario.LINEAR_FORMULA, Metric.PRICE)],
+                Col.SAFEGUARD_APPLIED: safeguard,
             }
         )
 
     def _summary(
         self,
-        inputs: OptimizationInputs,
+        problem: PricingProblem,
         ratios: dict[Scenario, np.ndarray],
         results: Sequence[SolveResult],
     ) -> pd.DataFrame:
         """One row per algorithm plus the rounded and linear-formula scenarios."""
-        current = self._totals(inputs, ratios[Scenario.CURRENT])
-        rows = [self._row(r.algorithm.value, inputs, r.ratios, current, r) for r in results] + [
-            self._row(s.value, inputs, ratios[s], current, None)
+        current = self._totals(problem.inputs, ratios[Scenario.CURRENT])
+        rows = [self._row(r.algorithm.value, problem, r.ratios, current, r) for r in results] + [
+            self._row(s.value, problem, ratios[s], current, None)
             for s in (Scenario.RECOMMENDED, Scenario.LINEAR_FORMULA)
         ]
-        summary = pd.DataFrame(rows)
-        logger.info(
-            "Optimization summary",
-            extra={"rows": summary[[Col.SCENARIO, "profit_change"]].round(4).to_dict("records")},
-        )
-        return summary
+        return pd.DataFrame(rows)
 
     def _row(
-        self, name: str, inputs: OptimizationInputs, r: np.ndarray, current: dict[Metric, float],
+        self, name: str, problem: PricingProblem, r: np.ndarray, current: dict[Metric, float],
         result: SolveResult | None,
     ) -> dict:  # fmt: skip
         """Summary row: weekly totals, % change vs current, annual profit delta, solver stats."""
-        totals = self._totals(inputs, r)
+        totals = self._totals(problem.inputs, r)
         row: dict[str, object] = {Col.SCENARIO: name}
         for metric in (Metric.VOLUME, Metric.REVENUE, Metric.PROFIT):
             row[f"weekly_{metric.value}"] = totals[metric]
@@ -167,16 +205,12 @@ class OptimizationService:
         row[Col.EVALUATIONS] = result.evaluations if result else np.nan
         row[Col.FIT_SECONDS] = result.seconds if result else np.nan
         row[Col.STATUS] = result.status if result else ""
-        row[Col.MAX_VIOLATION] = result.max_violation if result else self._max_violation(inputs, r)
+        row[Col.MAX_VIOLATION] = result.max_violation if result else problem.max_violation(r)
         return row
 
     def _totals(self, inputs: OptimizationInputs, r: np.ndarray) -> dict[Metric, float]:
         """Weekly portfolio totals at relative prices r."""
         return {m: float(v.sum()) for m, v in self._kpis.evaluate(inputs, self._demand, r).items()}
-
-    def _max_violation(self, inputs: OptimizationInputs, r: np.ndarray) -> float:
-        """Constraint violation of a non-solver scenario (e.g. after rounding)."""
-        return self._parts.problems.build(inputs, self._demand).max_violation(r)
 
     def _write(self, report: OptimizationReport) -> None:
         """Persist both tables as parquet."""
@@ -186,11 +220,11 @@ class OptimizationService:
         ):
             path.parent.mkdir(parents=True, exist_ok=True)
             frame.to_parquet(path, index=False)
-        logger.info("Wrote recommendations", extra={"products": len(report.recommendations)})
+        logger.info("Wrote recommendations", extra={"rows": len(report.recommendations)})
 
 
 class OptimizationFactory:
-    """Builds an OptimizationService from config (demand, objective, constraints, solvers).
+    """Builds an OptimizationService from config (demand, objectives, constraints, solvers).
 
     The only place that instantiates optimization classes.
     """
@@ -200,9 +234,11 @@ class OptimizationFactory:
         self._outputs = outputs
 
     def build(self) -> OptimizationService:
-        """Wire inputs, problem builder, solvers, rounder and robustness analysis."""
+        """Wire inputs, problem builder, solvers, rounding, checks and robustness."""
         opt = self._cfg.optimization
-        solvers = [NloptSolver(a, opt.maxeval, opt.xtol_rel) for a in opt.algorithms]
+        solvers = [
+            NloptSolver(a, opt.maxeval, opt.xtol_rel, opt.max_seconds) for a in opt.algorithms
+        ]
         problems = ProblemBuilder(opt)
         rounder = PricePointRounder(opt.price_endings)
         parts = OptimizationParts(
@@ -212,6 +248,9 @@ class OptimizationFactory:
             rounder=rounder,
             repair=FeasibilityRepair(rounder),
             robustness=RobustnessAnalyzer(problems, solvers[0], opt.robustness_draws, opt.seed),
+            rules=DirectionRuleCheck(),
         )
         demand = DEMAND_CURVES.get(opt.demand_form)()
-        return OptimizationService(parts, demand, opt.annualize_weeks, self._outputs)
+        return OptimizationService(
+            parts, demand, opt.objectives, opt.annualize_weeks, self._outputs
+        )

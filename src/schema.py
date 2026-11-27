@@ -90,6 +90,13 @@ class Col(StrEnum):
     EVALUATIONS = "evaluations"
     STATUS = "status"
     MAX_VIOLATION = "max_constraint_violation"
+    OBJECTIVE = "objective"
+    EFFECTIVE_COST = "effective_cost"
+    OWN_OPTIMAL_PRICE = "own_optimal_price"
+    EXPECTED_DIRECTION = "expected_direction"
+    ACTUAL_DIRECTION = "actual_direction"
+    RULE_STATUS = "rule_status"
+    SAFEGUARD_APPLIED = "safeguard_applied"
     MODEL = "model"
     ELASTICITY_SOURCE = "elasticity_source"
     IMPUTE_REASON = "impute_reason"
@@ -164,6 +171,21 @@ class Scenario(StrEnum):
     OPTIMAL = "optimal"
     RECOMMENDED = "recommended"  # optimal rounded to price points
     LINEAR_FORMULA = "linear_formula"  # linear-demand optimum scored on the true curve
+
+
+class Direction(StrEnum):
+    """Price move direction relative to the current price."""
+
+    RAISE = "raise"
+    CUT = "cut"
+    HOLD = "hold"
+
+
+class RuleStatus(StrEnum):
+    """Whether a recommendation follows the objective's own-optimum direction."""
+
+    FOLLOWS = "follows_rule"
+    CONSTRAINT_OVERRIDE = "constraint_override"
 
 
 class Metric(StrEnum):

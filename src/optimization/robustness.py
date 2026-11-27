@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.config import ModelName
+from src.config import ModelName, Objective
 from src.optimization.demand import DemandCurve
 from src.optimization.inputs import OptimizationInputs
 from src.optimization.problem import ProblemBuilder
@@ -39,15 +39,20 @@ class RobustnessAnalyzer:
         self._seed = seed
 
     def run(
-        self, inputs: OptimizationInputs, demand: DemandCurve, draws: pd.DataFrame
+        self,
+        inputs: OptimizationInputs,
+        demand: DemandCurve,
+        draws: pd.DataFrame,
+        objective: Objective | None = None,
     ) -> pd.DataFrame:
-        """UPC + p05/p50/p95 optimal prices; empty if no draws are available."""
+        """UPC + p05/p50/p95 optimal prices for the objective; empty if no draws exist."""
         if draws.empty:
             return pd.DataFrame(columns=[Col.UPC, *PERCENTILES])
         matrix = self._draw_matrix(inputs, draws)
         prices = []
         for beta in matrix:
-            result = self._solver.solve(self._builder.build(inputs.with_beta(beta), demand))
+            problem = self._builder.build(inputs.with_beta(beta), demand, objective)
+            result = self._solver.solve(problem)
             prices.append(result.ratios * inputs.p0)
         stacked = np.vstack(prices)
         out = {col: np.percentile(stacked, q, axis=0) for col, q in PERCENTILES.items()}

@@ -2,7 +2,7 @@
 
 inputs.py (P0, base volume, elasticity, cost, pack size), demand.py (constant and
 linear curves), problem.py (objectives, constraints, KPIs), solver.py (NLopt,
-rounding), robustness.py (posterior draws), service.py (facade + factory).
+rounding), checks.py (direction rule), robustness.py, service.py (facade + factory).
 """
 
 from src.optimization.service import (

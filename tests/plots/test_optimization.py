@@ -24,6 +24,8 @@ def _recs() -> pd.DataFrame:
             Col.PRODUCT_SIZE: "1 OZ", Col.CURRENT_PRICE: [3.0, 4.0], Col.BASE_VOLUME: 100.0,
             Col.ELASTICITY: [-2.5, -0.8], Col.UNIT_COST: [1.8, 2.4], Col.PRICE_RATIO: [-0.05, 0.1],
             Col.ROBUST_P05: [2.7, 4.2], Col.ROBUST_P95: [3.0, 4.8],
+            Col.EFFECTIVE_COST: [1.8, 2.4], Col.OWN_OPTIMAL_PRICE: [3.0, 4.8],
+            Col.OBJECTIVE: "profit",
         }
     )  # fmt: skip
     for scenario, ratio in ((Scenario.CURRENT, 1.0), (Scenario.RECOMMENDED, 1.05)):
@@ -40,11 +42,11 @@ class TestOptimizationPlotter:
         fig = OptimizationPlotter(PlotStyle()).price_changes(_recs(), (0.8, 1.2))
         assert isinstance(fig, Figure) and sum(ax.get_visible() for ax in fig.axes) == 2
 
-    def test_profit_curve(self) -> None:
-        """Renders for an elastic product (own optimum drawn)."""
-        assert isinstance(
-            OptimizationPlotter(PlotStyle()).profit_curve(_recs(), 1, (0.8, 1.2)), Figure
-        )
+    def test_objective_curve(self) -> None:
+        """Renders for an elastic and an inelastic product."""
+        plotter = OptimizationPlotter(PlotStyle())
+        for upc in (1, 2):
+            assert isinstance(plotter.objective_curve(_recs(), upc, (0.8, 1.2)), Figure)
 
     def test_scenarios(self) -> None:
         """Renders the scenario comparison."""
