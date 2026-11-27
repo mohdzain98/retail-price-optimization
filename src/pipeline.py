@@ -183,7 +183,7 @@ class PipelineCli:
     @staticmethod
     def _parser() -> argparse.ArgumentParser:
         """Argument parser with one positional stage name."""
-        parser = argparse.ArgumentParser(description="Retail price optimization pipeline")
+        parser = argparse.ArgumentParser(description="Retail price and promo optimization pipeline")
         parser.add_argument("stage", choices=[stage.name.value for stage in STAGES])
         parser.add_argument("--no-cache", action="store_true", help="re-read the raw Excel file")
         return parser

@@ -1,7 +1,7 @@
 [project]
-name = "retail-price-optimization"
+name = "retail-price-promo-optimization"
 version = "0.1.0"
-description = "Retail price optimization: Bayesian elasticity, baseline, NLopt pricing and promo budget allocation"
+description = "Retail price and promo optimization (RGM): Bayesian elasticity, baseline, NLopt pricing, forecasting and MILP promo planning"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

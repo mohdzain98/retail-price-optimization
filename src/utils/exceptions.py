@@ -7,7 +7,7 @@ Lives in utils because every layer raises these.
 
 
 class RPOError(Exception):
-    """Base class for all retail-price-optimization errors.
+    """Base class for all retail-price-promo-optimization errors.
 
     Catch this at entry points (CLI, app) to report project failures cleanly.
     """
