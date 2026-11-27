@@ -1,0 +1,20 @@
+flowchart TD
+  dir_src_optimization["src/optimization<br/>8 files"]
+  dir_src["src<br/>2 files"]
+  dir_src_baseline["src/baseline<br/>5 files"]
+  dir_scripts["scripts<br/>2 files"]
+  dir_src_promo["src/promo<br/>8 files"]
+  dir_src_utils["src/utils<br/>2 files"]
+  dir_src_prep["src/prep<br/>6 files"]
+  dir_src_elasticity["src/elasticity<br/>7 files"]
+  dir_src_simulator["src/simulator<br/>1 file"]
+  dir_scripts --> dir_src_prep
+  dir_scripts --> dir_src_simulator
+  dir_src --> dir_src_baseline
+  dir_src --> dir_src_elasticity
+  dir_src --> dir_src_optimization
+  dir_src --> dir_src_prep
+  dir_src --> dir_src_promo
+  dir_src_baseline -->|2| dir_src_elasticity
+  dir_src_promo -->|3| dir_src_elasticity
+  dir_src_promo -->|2| dir_src_prep

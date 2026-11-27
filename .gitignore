@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data (raw dataset is licensed; never commit it)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Local simulator accounts (password hashes); created by `make user`
+data/users.db*
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Env + logs
+.env
+.cache/
+
+# Internal planning notes (kept locally, not published)
+docs/plans

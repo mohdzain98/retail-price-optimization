@@ -1,0 +1,193 @@
+# Architecture
+
+How the code is organised, how data flows between stages, and how to extend it. The coding conventions are in
+[`.claude/skills/python-style/SKILL.md`](../.claude/skills/python-style/SKILL.md).
+
+## Data flow
+
+Rounded boxes are pipeline stages (`make <stage>` → the layer's facade); cylinders are files in `data/processed/`
+unless noted. Arrows show every input a stage reads.
+
+```mermaid
+flowchart TD
+    raw[("data/raw/*.xlsx<br/>Breakfast at the Frat")]
+
+    prep(["make prep<br/>DataPrepService"])
+    panel[("panel.parquet<br/>product × week panel:<br/>features, split, trend")]
+
+    elas(["make elasticity<br/>ElasticityService"])
+    final[("elasticities.parquet<br/>final elasticity per product")]
+    models[("elasticity_models.pkl<br/>fitted models")]
+    draws[("elasticity_draws.parquet<br/>posterior draws")]
+    elasx[("elasticities_all_models.parquet<br/>model_comparison.parquet")]
+
+    base(["make baseline<br/>BaselineService"])
+    baseline[("baseline.parquet<br/>weekly baseline, effects, due-to")]
+    basesum[("baseline_summary.parquet")]
+
+    opt(["make optimize<br/>OptimizationService"])
+    recs[("price_recommendations.parquet<br/>prices + KPIs per objective")]
+    optsum[("optimization_summary.parquet")]
+
+    promo(["make promo<br/>PromoService"])
+    fc[("forecast.parquet<br/>forecast + MILP calendar")]
+    promox[("promo_candidates · promo_plan<br/>budget_frontier · promo_summary<br/>forecast_backtest")]
+
+    nb(["notebooks 01–05<br/>src.plots"])
+    figs[("reports/figures/*.png")]
+
+    app(["make app<br/>Streamlit simulator<br/>src.simulator"])
+
+    raw --> prep --> panel
+    panel --> elas --> final & models & draws & elasx
+    panel & final & models --> base --> baseline & basesum
+    baseline & final & draws --> opt --> recs & optsum
+    panel & baseline & final & models & recs --> promo --> fc & promox
+    panel & final & baseline & recs & fc & promox --> nb --> figs
+    recs & optsum & fc & promox --> app
+
+    classDef stage fill:#257de0,stroke:#1b5fab,color:#ffffff
+    classDef data fill:#f4f6f8,stroke:#9aa5b1,color:#191919
+    class prep,elas,base,opt,promo,nb,app stage
+    class raw,panel,final,models,draws,elasx,baseline,basesum,recs,optsum,fc,promox,figs data
+```
+
+Every stage reads its inputs from `data/processed/` and writes its outputs there, so any stage can be re-run on its
+own. The raw Excel file is parsed once and cached as `raw_*.parquet`.
+
+## Package layout
+
+```
+src/
+  config.py        frozen pydantic Config (Config.load), Enums for fixed choices, project paths
+  schema.py        Col: every column name; Split, FilterReason, ImputeReason, Tactic; fourier_columns
+  pipeline.py      Stage registry + PipelineCli (python -m src.pipeline <stage>)
+  utils/           logger.py (AppLogger) · exceptions.py (RPOError hierarchy) · registry.py (Registry)
+  prep/            loader.py · panel.py · features.py · trend.py · service.py
+  elasticity/      base.py · frequentist.py · bayes.py · guardrails.py (QualityGates, ModelSelector,
+                   HierarchicalImputer) · service.py
+  baseline/        effects.py · rules.py · decomposition.py · service.py
+  optimization/    inputs.py · demand.py · problem.py · solver.py · robustness.py · service.py
+  promo/           forecasters.py (naive, seasonal, SARIMAX, XGBoost) · forecast.py · candidates.py ·
+                   planner.py (MILP, greedy, last year) · frontier.py · service.py
+  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py · baseline.py · optimization.py ·
+                   promo.py
+  simulator/       data.py (SimulatorData) · pricing.py (PriceSimulator) · promo.py (PromoSimulator) ·
+                   charts.py (Altair) · accounts.py (UserStore, scrypt) · docs.py (DocReader)
+app/               streamlit_app.py (sign-in gate, navigation) · shell.py (sidebar, user bar, settings) ·
+                   landing.py (sign-in artwork) · shared.py (cached loaders, session) ·
+                   app_pages/ (login, overview, prices, promos, forecast, glossary)
+scripts/           setup.sh (make setup) · check_data.py · create_user.py (make user) · loc.py (make loc)
+notebooks/         thin presentation notebooks (no logic)
+tests/             mirrors src/ (one test class per production class)
+```
+
+A folder exists only when it holds two or more modules of the same kind; a lone module stays a single file.
+
+## Layers and facades
+
+Each layer exposes one facade, built by a factory (the composition root):
+
+| Layer | Facade | Factory | Used by |
+|---|---|---|---|
+| `src.prep` | `DataPrepService.run()` | `DataPrepFactory(cfg, loader_settings, output_path)` | `PrepStage` |
+| `src.elasticity` | `ElasticityService.run(panel)` | `ElasticityFactory(cfg, outputs)` | `ElasticityStage` |
+| `src.baseline` | `BaselineService.run(panel, final)` | `BaselineFactory(cfg, models, outputs)` | `BaselineStage` |
+| `src.optimization` | `OptimizationService.run(baseline, final, draws)` | `OptimizationFactory(cfg, outputs)` | `OptimizeStage` |
+| `src.promo` | `PromoService.run(panel, baseline, final, recommendations)` | `PromoFactory(cfg, models, outputs)` | `PromoStage` |
+| `src.simulator` | `PriceSimulator.optimize/score`, `PromoSimulator.plan/frontier` | built in `app/shared.py` (cached) | Streamlit pages |
+
+Dependencies are injected through `__init__`. Only factories and pipeline stages construct objects, which is why
+tests can swap in temporary paths and small synthetic data. Lower layers never import higher ones: prep knows
+nothing about elasticity, baseline uses elasticity only through its facade
+(`ElasticityModel`, `ModelStore`), and none of them imports the pipeline.
+
+## Extension points (Open/Closed)
+
+New behaviour is added by registering a class, not by editing an `if/elif` chain:
+
+| Registry | Base class | Key | Add a new… |
+|---|---|---|---|
+| `AGGREGATORS` (`prep/panel.py`) | `Aggregator` | `Grain` | panel grain |
+| `PRODUCT_FILTERS` (`prep/panel.py`) | `ProductFilter` | `FilterReason` | eligibility rule |
+| `FEATURE_STEPS` (`prep/features.py`) | `FeatureStep` | name | engineered feature |
+| `ELASTICITY_MODELS` (`elasticity/base.py`) | `ElasticityModel` | `ModelName` | elasticity model |
+| `BASELINE_RULES` (`baseline/rules.py`) | `BaselineRule` | name | bad-baseline rule (with its fix) |
+| `DEMAND_CURVES` (`optimization/demand.py`) | `DemandCurve` | `DemandForm` | demand curve (value + slope) |
+| `OBJECTIVES` (`optimization/problem.py`) | `ObjectiveFn` | `Objective` | objective (value + gradient) |
+| `CONSTRAINTS` (`optimization/problem.py`) | `Constraint` | name | pricing constraint (`fc ≤ 0` + Jacobian) |
+| `FORECASTERS` (`promo/forecasters.py`) | `Forecaster` | `ForecastMethod` | baseline forecast method (scored in the backtest) |
+| `PLANNERS` (`promo/planner.py`) | `PromoPlanner` | `Planner` | promo calendar planner (MILP, greedy, …) |
+| `STAGES` (`pipeline.py`) | `Stage` | `StageName` | pipeline stage |
+
+For example, to add an elasticity model:
+
+1. Add a member to `ModelName` in `src/config.py`.
+2. Subclass `ElasticityModel`, implement `fit` and `predict`, and decorate the class with
+   `@ELASTICITY_MODELS.register`.
+3. List the model under `elasticity.models` in `config/config.yaml`.
+
+The service, quality gates, holdout comparison and forest plots pick it up automatically. To make the new model
+eligible for selection, also add it to `elasticity.model_priority`.
+
+## Streamlit simulator
+
+`app/` is presentation only. Page scripts read widgets, call `src.simulator` and render; all logic lives in
+`src.simulator`, which reuses the pipeline classes instead of re-implementing them:
+
+- **Prices:** `PriceSimulator` rebuilds the optimizer inputs from `price_recommendations.parquet`. It re-solves with
+  the user's margins and guardrails through `ProblemBuilder`, `NloptSolver` and `PriceRecommender` (round, repair,
+  safeguard), and scores edited prices on the same demand curve. Each solve takes about 0.3 s.
+- **Promotions:** `PromoSimulator` re-prices the stored options (`promo_candidates.parquet`) for new fees, filters
+  tactics and depths, and plans with `MilpPlanner`. It compares the plan with `LastYearCalendar` through
+  `HorizonKpis`; each plan takes under 1 s. The budget frontier runs `BudgetFrontier` on request.
+- **Caching:** loaders use `st.cache_resource`, keyed by data directory. Solves use `st.cache_data`, keyed by the
+  frozen, hashable `PriceSettings` / `PromoSettings`.
+- **Sign-in:** the app is local-only. `make user` (`scripts/create_user.py`) prompts for name, email and password,
+  re-asks invalid input and refuses an email that already has an account. `UserStore` (`src/simulator/accounts.py`)
+  keeps accounts in a gitignored SQLite file (`data/users.db`, or `RPO_USERS_DB`). It stores only salted scrypt
+  hashes (Python standard library), compares them in constant time, and saves each user's settings as JSON. A
+  signed-out session sees only `app_pages/login.py`. For a hosted deployment, OIDC sign-in (`st.login`) would replace
+  this.
+- **Shell:** `app/shell.py` builds the sidebar: the goal switch, dataset facts, "What this page contains", and a
+  user bar pinned to the bottom. The bar is a popover with Settings, Glossary and Sign out. Pinning it needs a
+  small CSS layer: the sidebar becomes a flex column, the info block scrolls, and the bar stays fixed. The CSS
+  targets keyed containers (`.st-key-*`). Settings saves per-user preferences: the goal at
+  sign-in, weeks per year, frontier points, the minimum marginal return, and whether explanations are shown. The
+  Glossary, a page hidden from the top navigation (`/glossary`, opened from the user bar), shows `docs/methodology.md` and `docs/architecture.md` in tabs. `DocReader` turns GitHub `math` fences into
+  `$$` blocks for Streamlit. Light/dark mode stays in Streamlit's own menu (`toolbarMode = "viewer"` hides only the
+  developer items), because Streamlit has no public API to switch the theme from code.
+- **Data:** the app reads `data/processed/` by default, or `RPO_DATA_DIR` if it is set. Tests point it at synthetic
+  outputs written by the real optimization and promo services, so `AppTest` runs in CI without the licensed data.
+
+## Configuration
+
+All tunables live in `config/config.yaml` and are validated on load:
+
+- **Data:** sheet and column mappings, grain.
+- **Prep:** filters, holdout length, Fourier order, promo-flag thresholds, pantry lags, LOESS window.
+- **Elasticity:** regular and promo bounds, models, model priority, quality gates, imputation levels, priors,
+  sampler settings.
+- **Optimization:** objectives, demand form, constraints, NLopt settings, price endings.
+- **Forecast and promo:** horizon, forecast method (`auto` = backtest winner), SARIMAX order, XGBoost settings,
+  lift model, tactics, depths, assumed fees, budget, calendar rules, frontier points, hurdle, MIP gap.
+- **App theme:** `.streamlit/config.toml` (light and dark palettes, `toolbarMode = "viewer"`).
+
+Config objects are frozen. Invalid values fail at load time, for example positive elasticity bounds or a priority
+model that is not fitted.
+
+## Errors and logging
+
+- All project errors derive from `RPOError` (`ConfigError`, `MissingFileError`, `DataValidationError`,
+  `SolverError`, `AccountError`). `PipelineCli` turns them into a logged message and exit code 1.
+- Logging goes through `AppLogger`; there are no `print` calls in `src/`. `logger.print()` pretty-prints shapes and
+  parameters when `RPO_PRINT_ENABLED=true` in `.env`. Logs never contain data rows.
+
+## Quality gates
+
+`make check` runs ruff (lint and format), mypy, pytest and the pre-commit hooks, which include stripping notebook
+outputs. CI runs the same checks on every pull request into `main`. It first runs a file guard,
+`scripts/check_pr_files.py` (`make pr-check` locally). The guard fails the PR if it adds anything under `data/`,
+data or model files (`.parquet`, `.csv`, `.xlsx`, `.pkl`, `.db`, …), secrets (`.env`, `.streamlit/secrets.toml`),
+local notes or caches, or any file over 2 MB. A short allowlist covers the placeholders, `.env.example` and the
+archived 2022 sample CSV.

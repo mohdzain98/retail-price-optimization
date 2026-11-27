@@ -1,0 +1,5 @@
+# GitHub Linguist: keep the language bar about the project, not the 2022 archive
+archive/** linguist-vendored
+
+# Notebooks are stored without outputs (nbstripout); diff them as text
+*.ipynb diff

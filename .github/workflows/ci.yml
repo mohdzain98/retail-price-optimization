@@ -1,0 +1,43 @@
+name: CI
+
+# Runs only on PRs into main; nothing re-runs after the merge.
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history, so the PR can be diffed against its base branch
+
+      - name: No data, secrets or oversized files in the PR
+        run: python3 scripts/check_pr_files.py --base origin/${{ github.base_ref }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Pre-commit hooks (file hygiene, ruff, nbstripout)
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Tests
+        run: uv run pytest

@@ -1,0 +1,23 @@
+"""Plotting layer: one visual style for every project chart.
+
+style.py (PlotStyle, FigureStore), eda.py (Phase 1), elasticity.py (Phase 2)
+baseline.py (Phase 3), optimization.py (Phase 4) and promo.py (Phase 5). Import in one line:
+from src.plots import BaselinePlotter, FigureStore, PlotStyle.
+"""
+
+from src.plots.baseline import BaselinePlotter
+from src.plots.eda import EdaPlotter
+from src.plots.elasticity import ElasticityPlotter
+from src.plots.optimization import OptimizationPlotter
+from src.plots.promo import PromoPlotter
+from src.plots.style import FigureStore, PlotStyle
+
+__all__ = [
+    "BaselinePlotter",
+    "EdaPlotter",
+    "ElasticityPlotter",
+    "FigureStore",
+    "OptimizationPlotter",
+    "PlotStyle",
+    "PromoPlotter",
+]

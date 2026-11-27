@@ -1,0 +1,148 @@
+# Single source of truth for every tunable in the pipeline.
+# Loaded and validated by src/rpo/config.py.
+
+data:
+  raw_file: "dunnhumby - Breakfast at the Frat.xlsx"  # verify exact name on download
+  sheets:  # verify exact sheet names on download (Phase 1)
+    transactions: "dh Transaction Data"
+    products: "dh Products Lookup"
+    stores: "dh Store Lookup"
+  header_row: null  # 0-based; null = auto-detect (release may have a title row)
+  grain: product_week  # product_week | store_product_week
+  # raw column name -> canonical name; verify against the downloaded file
+  columns:
+    transactions:
+      WEEK_END_DATE: week
+      STORE_NUM: store
+      UPC: upc
+      UNITS: units
+      VISITS: visits
+      HHS: hhs
+      SPEND: spend
+      PRICE: price
+      BASE_PRICE: base_price
+      FEATURE: feature
+      DISPLAY: display
+      TPR_ONLY: tpr
+    products:
+      UPC: upc
+      DESCRIPTION: description
+      MANUFACTURER: manufacturer
+      CATEGORY: category
+      SUB_CATEGORY: sub_category
+      PRODUCT_SIZE: product_size
+    stores:
+      STORE_ID: store
+      STORE_NAME: store_name
+      ADDRESS_STATE_PROV_CODE: state
+      SEG_VALUE_NAME: segment
+
+filters:
+  min_weeks: 52
+  min_price_variation: 0.05  # min (max/min - 1) of weekly price per product
+
+split:
+  holdout_weeks: 13
+
+features:
+  fourier_order: 3
+  holiday_country: US
+  # promo_flag = 1 when discount depth or the share of stores on feature/display reaches these
+  promo_min_discount: 0.05
+  promo_min_tactic_share: 0.25
+  pantry_lags: 3   # pl1..pl3: promo flag lagged 1-3 weeks (post-promo dip)
+
+trend:
+  # LOESS of the residual of a per-product driver regression, fitted on train weeks.
+  # Window > 52 so the trend stays smoother than yearly seasonality (Fourier terms own that).
+  lowess_window_weeks: 78
+
+elasticity:
+  bounds: [-5.0, -0.3]         # regular (base) price elasticity, used by the optimizer
+  promo_bounds: [-8.0, -0.3]   # promo discount elasticity, used for promo planning
+  models: [ols_per_product, pooled_ols, mixed_effects, bayes_hierarchical]
+  # per product, the first model passing the quality gates is used
+  model_priority: [bayes_hierarchical, mixed_effects, ols_per_product]
+  quality:
+    max_mape: 0.3   # in-sample MAPE on units
+    min_r2: 0.45    # in-sample R^2 on log units, within product
+  # products failing every model take the median of valid estimates at the first level with one
+  imputation_levels: [[sub_category, manufacturer], [sub_category], [category]]
+  bayes:
+    draws: 1500
+    tune: 1500   # r-hat was 1.012 at 1000/1000
+    chains: 4
+    target_accept: 0.95   # 0.9 left 1 divergence with two slope hierarchies
+    seed: 42
+    hdi_prob: 0.94
+    prior_mean: -1.5        # regular price: typical grocery own-price elasticity
+    prior_sd: 1.0
+    promo_prior_mean: -2.5  # shoppers react more to temporary cuts
+    promo_prior_sd: 1.5
+    prior_group_sd: 0.5     # scale of category and product deviations
+
+cost:
+  # cost = (1 - margin) * base_price; no cost column in the dataset
+  default_margin: 0.30
+  margin_by_category:
+    BAG SNACKS: 0.35
+    COLD CEREAL: 0.30
+    FROZEN PIZZA: 0.28
+    ORAL HYGIENE PRODUCTS: 0.40
+
+optimization:
+  # solved one after another and stored side by side (simulator can switch); first is the default
+  objectives: [profit, revenue]  # profit | revenue | weighted
+  profit_weight: 1.0  # used when objective = weighted
+  demand_form: constant_elasticity  # constant_elasticity | linear (linear is the common first-order formula)
+  price_bounds: [0.8, 1.2]  # multipliers of the current regular price
+  volume_floor: 0.95  # portfolio baseline volume >= floor * current
+  max_avg_price_increase: 0.05  # revenue-weighted average price change <= +5%
+  ladder_min_gap: 0.10  # branded unit price >= (1 + gap) * private-label unit price (same sub-category)
+  algorithms: [LD_SLSQP, LN_COBYLA, GN_ISRES]  # first is the primary solver
+  maxeval: 20000
+  max_seconds: 20  # per solve; stops slow derivative-free runs (COBYLA on revenue) from stalling
+  xtol_rel: 1.0e-8
+  price_endings: [0.09, 0.19, 0.29, 0.39, 0.49, 0.59, 0.69, 0.79, 0.89, 0.99]  # "9" endings, 10c grid
+  reference_weeks: 13  # current price = median base price; base volume = mean baseline, last N weeks
+  annualize_weeks: 52
+  robustness_draws: 200  # posterior elasticity draws re-optimized for the price range
+  seed: 42
+
+baseline:
+  # Top-down baseline: exp(ln_units - price - promo - pantry - promo-week error effects)
+  rolling_window: 7            # centred rolling mean used to repair bad promo-week baselines
+  max_base_to_volume: 1.5      # rule 3: baseline above 1.5x actual volume is implausible
+  neighbor_drop_ratio: 0.75    # rule 6: promo-week baseline below 75% of a neighbour
+  promo_lookback_weeks: 3      # rule 3: "no promo in the last N weeks"
+
+forecast:
+  # Baseline forecast over the planning horizon. Methods are scored on the holdout (target:
+  # top-down baseline); `auto` uses the lowest-WAPE one. Calendar regressors: Fourier + holidays.
+  horizon_weeks: 13
+  method: auto  # auto | naive_flat | seasonal_index | sarimax | xgboost
+  sarimax_order: [0, 1, 1]  # (p, d, q) on log baseline + calendar regressors; local level (best of 5 orders tried)
+  xgboost:  # global direct multi-horizon model on log(baseline h weeks ahead / level at origin)
+    n_estimators: 300
+    max_depth: 4
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 5
+    seed: 42
+
+promo:
+  # Trade promotion optimization (MILP, PuLP + HiGHS) on top of the recommended regular prices
+  lift_model: bayes_hierarchical  # shrunk tactic, pantry and seasonal effects for every product
+  tactics: [tpr, feature, display, feature_display]  # BOGO etc. are not in the data
+  depths: [0.10, 0.20, 0.30]  # discount off the regular price, offered with every tactic
+  fixed_cost: {tpr: 0.0, feature: 500.0, display: 300.0, feature_display: 800.0}  # assumed, per SKU-week
+  budget: 150000.0  # trade budget available over the horizon (discount funding + fixed fees)
+  max_promos_per_sku: 4
+  min_gap_weeks: 3  # weeks between promos of one SKU (>= pantry lags, so dips never overlap)
+  max_feature_slots: 10  # SKUs in the weekly circular
+  max_display_slots: 12  # SKUs on secondary display per week
+  frontier_points: 16  # budgets solved from 0 to the unconstrained spend
+  min_marginal_return: 0.25  # recommended budget: last step returning >= $0.25 of goal per $1
+  mip_gap: 0.001
+  time_limit_seconds: 60
