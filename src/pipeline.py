@@ -1,6 +1,6 @@
 """Command-line entry point and composition root for pipeline stages.
 
-Usage: python -m src.pipeline {prep,elasticity,baseline,optimize} [--no-cache]
+Usage: python -m src.pipeline {prep,elasticity,baseline,optimize,promo} [--no-cache]
 Each Stage registers in STAGES and wires its layer's facade from config and
 paths; PipelineCli parses arguments and runs the chosen stage.
 """
@@ -26,11 +26,13 @@ from src.config import (
     ELASTICITY_MODELS_PATH,
     ELASTICITY_PATH,
     PANEL_PATH,
+    RECOMMENDATIONS_PATH,
     Config,
 )
 from src.elasticity import ElasticityFactory, ElasticityOutputs, ModelStore
 from src.optimization import OptimizationFactory, OptimizationOutputs
 from src.prep import DataPrepFactory, LoaderSettings
+from src.promo import PromoFactory, PromoOutputs
 from src.utils import AppLogger, MissingFileError, Registry, RPOError
 
 logger = AppLogger.get_logger(__name__)
@@ -43,6 +45,7 @@ class StageName(StrEnum):
     ELASTICITY = "elasticity"
     BASELINE = "baseline"
     OPTIMIZE = "optimize"
+    PROMO = "promo"
 
 
 @dataclass(frozen=True)
@@ -132,6 +135,27 @@ class OptimizeStage(Stage):
         )
         service = OptimizationFactory(self._cfg, OptimizationOutputs.default()).build()
         service.run(pd.read_parquet(BASELINE_PATH), pd.read_parquet(ELASTICITY_PATH), draws)
+
+
+@STAGES.register
+class PromoStage(Stage):
+    """Phase 5: forecast + recommended prices -> promo calendar, budget frontier, KPIs."""
+
+    name = StageName.PROMO
+
+    def run(self) -> None:
+        """Forecast the horizon and optimise the promo plan for every objective."""
+        required = ((PANEL_PATH, "prep"), (ELASTICITY_PATH, "elasticity"),
+                    (BASELINE_PATH, "baseline"), (RECOMMENDATIONS_PATH, "optimize"))  # fmt: skip
+        for path, stage in required:
+            if not path.exists():
+                raise MissingFileError(f"{path} not found; run `make {stage}` first")
+        models = ModelStore(ELASTICITY_MODELS_PATH).load()
+        service = PromoFactory(self._cfg, models, PromoOutputs.default()).build()
+        service.run(
+            pd.read_parquet(PANEL_PATH), pd.read_parquet(BASELINE_PATH),
+            pd.read_parquet(ELASTICITY_PATH), pd.read_parquet(RECOMMENDATIONS_PATH),
+        )  # fmt: skip
 
 
 class PipelineCli:

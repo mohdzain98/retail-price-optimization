@@ -5,27 +5,48 @@ How the code is organised, how data flows between stages, and how to extend it. 
 
 ## Data flow
 
-```
-data/raw/*.xlsx
-   │  make prep        (src.prep → DataPrepService)
-   ▼
-data/processed/panel.parquet            product × week panel with features, split and trend
-   │  make elasticity  (src.elasticity → ElasticityService)
-   ▼
-data/processed/elasticities.parquet     final guard-railed elasticity per product
-               elasticities_all_models.parquet, model_comparison.parquet, elasticity_draws.parquet
-               elasticity_models.pkl                (fitted models for the next stage)
-   │  make baseline    (src.baseline → BaselineService)
-   ▼
-data/processed/baseline.parquet         weekly baseline, effect terms, rule flags, due-to lifts
-               baseline_summary.parquet
-   │  make optimize    (src.optimization → OptimizationService)
-   ▼
-data/processed/price_recommendations.parquet   per-product optimal / recommended prices + KPIs
-               optimization_summary.parquet    solver and scenario comparison
-   │  (Phase 5) forecast + promo planning
-   ▼
-reports/figures/*.png                   charts rendered by src.plots (via the notebooks)
+Rounded boxes are pipeline stages (`make <stage>` → the layer's facade); cylinders are files in `data/processed/`
+unless noted. Arrows show every input a stage reads.
+
+```mermaid
+flowchart TD
+    raw[("data/raw/*.xlsx<br/>Breakfast at the Frat")]
+
+    prep(["make prep<br/>DataPrepService"])
+    panel[("panel.parquet<br/>product × week panel:<br/>features, split, trend")]
+
+    elas(["make elasticity<br/>ElasticityService"])
+    final[("elasticities.parquet<br/>final elasticity per product")]
+    models[("elasticity_models.pkl<br/>fitted models")]
+    draws[("elasticity_draws.parquet<br/>posterior draws")]
+    elasx[("elasticities_all_models.parquet<br/>model_comparison.parquet")]
+
+    base(["make baseline<br/>BaselineService"])
+    baseline[("baseline.parquet<br/>weekly baseline, effects, due-to")]
+    basesum[("baseline_summary.parquet")]
+
+    opt(["make optimize<br/>OptimizationService"])
+    recs[("price_recommendations.parquet<br/>prices + KPIs per objective")]
+    optsum[("optimization_summary.parquet")]
+
+    promo(["make promo<br/>PromoService"])
+    fc[("forecast.parquet<br/>forecast + MILP calendar")]
+    promox[("promo_candidates · promo_plan<br/>budget_frontier · promo_summary<br/>forecast_backtest")]
+
+    nb(["notebooks 01–05<br/>src.plots"])
+    figs[("reports/figures/*.png")]
+
+    raw --> prep --> panel
+    panel --> elas --> final & models & draws & elasx
+    panel & final & models --> base --> baseline & basesum
+    baseline & final & draws --> opt --> recs & optsum
+    panel & baseline & final & models & recs --> promo --> fc & promox
+    panel & final & baseline & recs & fc & promox --> nb --> figs
+
+    classDef stage fill:#257de0,stroke:#1b5fab,color:#ffffff
+    classDef data fill:#f4f6f8,stroke:#9aa5b1,color:#191919
+    class prep,elas,base,opt,promo,nb stage
+    class raw,panel,final,models,draws,elasx,baseline,basesum,recs,optsum,fc,promox,figs data
 ```
 
 Every stage reads its inputs from `data/processed/` and writes its outputs there, so any stage can be re-run on its
@@ -44,7 +65,10 @@ src/
                    HierarchicalImputer) · service.py
   baseline/        effects.py · rules.py · decomposition.py · service.py
   optimization/    inputs.py · demand.py · problem.py · solver.py · robustness.py · service.py
-  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py · baseline.py · optimization.py
+  promo/           forecasters.py (naive, seasonal, SARIMAX, XGBoost) · forecast.py · candidates.py ·
+                   planner.py (MILP, greedy, last year) · frontier.py · service.py
+  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py · baseline.py · optimization.py ·
+                   promo.py
 notebooks/         thin presentation notebooks (no logic)
 tests/             mirrors src/ (one test class per production class)
 ```
@@ -61,6 +85,7 @@ Each layer exposes one facade, built by a factory (the composition root):
 | `src.elasticity` | `ElasticityService.run(panel)` | `ElasticityFactory(cfg, outputs)` | `ElasticityStage` |
 | `src.baseline` | `BaselineService.run(panel, final)` | `BaselineFactory(cfg, models, outputs)` | `BaselineStage` |
 | `src.optimization` | `OptimizationService.run(baseline, final, draws)` | `OptimizationFactory(cfg, outputs)` | `OptimizeStage` |
+| `src.promo` | `PromoService.run(panel, baseline, final, recommendations)` | `PromoFactory(cfg, models, outputs)` | `PromoStage` |
 
 Dependencies are injected through `__init__`. Only factories and pipeline stages construct objects, which is why
 tests can swap in temporary paths and small synthetic data. Lower layers never import higher ones: prep knows
@@ -81,6 +106,8 @@ New behaviour is added by registering a class, not by editing an `if/elif` chain
 | `DEMAND_CURVES` (`optimization/demand.py`) | `DemandCurve` | `DemandForm` | demand curve (value + slope) |
 | `OBJECTIVES` (`optimization/problem.py`) | `ObjectiveFn` | `Objective` | objective (value + gradient) |
 | `CONSTRAINTS` (`optimization/problem.py`) | `Constraint` | name | pricing constraint (`fc ≤ 0` + Jacobian) |
+| `FORECASTERS` (`promo/forecasters.py`) | `Forecaster` | `ForecastMethod` | baseline forecast method (scored in the backtest) |
+| `PLANNERS` (`promo/planner.py`) | `PromoPlanner` | `Planner` | promo calendar planner (MILP, greedy, …) |
 | `STAGES` (`pipeline.py`) | `Stage` | `StageName` | pipeline stage |
 
 For example, to add an elasticity model:
@@ -101,14 +128,17 @@ All tunables live in `config/config.yaml` and are validated on load:
 - **Prep:** filters, holdout length, Fourier order, promo-flag thresholds, pantry lags, LOESS window.
 - **Elasticity:** regular and promo bounds, models, model priority, quality gates, imputation levels, priors,
   sampler settings.
-- **Later phases:** optimization, forecast and promo settings.
+- **Optimization:** objectives, demand form, constraints, NLopt settings, price endings.
+- **Forecast and promo:** horizon, forecast method (`auto` = backtest winner), SARIMAX order, XGBoost settings, lift model, tactics, depths, assumed fees, budget, calendar rules, frontier
+  points, hurdle, MIP gap.
 
 Config objects are frozen. Invalid values fail at load time, for example positive elasticity bounds or a priority
 model that is not fitted.
 
 ## Errors and logging
 
-- All project errors derive from `RPOError` (`ConfigError`, `MissingFileError`, `DataValidationError`).
+- All project errors derive from `RPOError` (`ConfigError`, `MissingFileError`, `DataValidationError`,
+  `SolverError`).
   `PipelineCli` turns them into a logged message and exit code 1.
 - Logging goes through `AppLogger`; there are no `print` calls in `src/`. `logger.print()` pretty-prints shapes and
   parameters when `RPO_PRINT_ENABLED=true` in `.env`. Logs never contain data rows.

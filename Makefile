@@ -10,7 +10,7 @@ else
   RUN := env PATH="$(abspath $(VENV))/bin:$$PATH"
 endif
 
-.PHONY: setup install hooks data-check prep elasticity baseline optimize loc lint format test check app
+.PHONY: setup install hooks data-check prep elasticity baseline optimize promo loc lint format test check app
 
 setup:  ## one-time setup: env, deps, .env, git hooks, data check
 	USE_UV=$(USE_UV) ./scripts/setup.sh
@@ -41,6 +41,9 @@ baseline:  ## Phase 3: top-down baseline + due-to decomposition
 
 optimize:  ## Phase 4: NLopt profit-maximising regular prices
 	$(RUN) python -m src.pipeline optimize
+
+promo:  ## Phase 5: baseline forecast + MILP promo calendar and budget frontier
+	$(RUN) python -m src.pipeline promo
 
 loc:  ## lines of code: Python (gnost) + notebooks + GitHub language share
 	$(RUN) python scripts/loc.py

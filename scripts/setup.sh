@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-python3}"
 USE_UV="${USE_UV:-$(command -v uv >/dev/null 2>&1 && echo 1 || echo 0)}"
-MIN_MINOR=11
+MIN_MINOR=12  # pulp 4 (HiGHS MILP API)
 MAX_MINOR=12  # pymc / nlopt wheels
 TOTAL=5
 COUNT=0

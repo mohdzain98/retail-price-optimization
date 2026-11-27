@@ -67,3 +67,17 @@ All files are in `data/processed/`. Column names are defined once, in `src/schem
 |---|---|
 | `price_recommendations.parquet` | One row per product **and objective** (`objective` = `profit` / `revenue`). Contains: inputs (`current_price`, `base_volume_weekly`, `elasticity` + interval, `unit_cost`, pack size); weekly KPIs per scenario (`{current,optimal,recommended,linear_formula}_{price,volume,revenue,profit}`, always at real unit cost); `price_ratio` (recommended change); `linear_formula_price`; `safeguard_applied`; the rule check (`effective_cost`, `own_optimal_price`, `expected_direction`, `actual_direction`, `rule_status`); and robustness percentiles `optimal_price_p05/p50/p95` |
 | `optimization_summary.parquet` | Per objective, one row per solver (`LD_SLSQP`, `LN_COBYLA`, `GN_ISRES`) and per scenario (`recommended`, `linear_formula`). Contains weekly totals, % change vs current, `annual_profit_delta`, evaluations, time, status and `max_constraint_violation` |
+
+### Forecast and promo outputs
+
+Every table except the backtest has an `objective` column (`profit` / `revenue`); each goal uses its own Phase 4
+prices.
+
+| File | Content |
+|---|---|
+| `forecast.parquet` | One row per product × horizon week: `forecast_method`, `seasonal_index` (forecast ÷ base volume), `forecast_baseline_current_prices`, `forecast_baseline_units` (at recommended prices), product attributes, `current_price`, `regular_price`, the MILP plan for that week (`tactic`, `discount_depth`, `promo_price`, `promo_units`, `trade_spend`, incremental units, revenue and profit; empty when no promo) and `plan_units` (units with promo lifts and pantry dips) |
+| `forecast_backtest.parquet` | One row per forecast method (`naive_flat`, `seasonal_index`, `sarimax`, `xgboost`): `holdout_wape`, `holdout_bias`, scored rows, fit seconds and `selected` (the method used for the horizon) |
+| `promo_candidates.parquet` | Every product × week × tactic × depth option: `lift`, `promo_units`, `pantry_dip_units`, `incremental_units`, `incremental_revenue`, `incremental_profit`, `fixed_cost`, `trade_spend`, `gain` (the goal's incremental value) and `roi` (gain ÷ spend). The simulator can re-plan from this table |
+| `promo_plan.parquet` | Chosen options per `scenario` (`last_year_calendar`, `milp_at_last_year_spend`, `greedy_plan`, `milp_plan`) with the `budget` each was solved for |
+| `budget_frontier.parquet` | One row per budget: `trade_spend`, `gain`, `n_promos`, `marginal_return` and the `recommended_budget` flag |
+| `promo_summary.parquet` | Horizon totals per scenario (also current and recommended prices with no promo): volume, revenue, profit (net of fees), trade spend, promos, and % change vs current prices with no promo |

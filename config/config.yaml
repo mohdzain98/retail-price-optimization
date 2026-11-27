@@ -117,11 +117,32 @@ baseline:
   promo_lookback_weeks: 3      # rule 3: "no promo in the last N weeks"
 
 forecast:
+  # Baseline forecast over the planning horizon. Methods are scored on the holdout (target:
+  # top-down baseline); `auto` uses the lowest-WAPE one. Calendar regressors: Fourier + holidays.
   horizon_weeks: 13
+  method: auto  # auto | naive_flat | seasonal_index | sarimax | xgboost
+  sarimax_order: [0, 1, 1]  # (p, d, q) on log baseline + calendar regressors; local level (best of 5 orders tried)
+  xgboost:  # global direct multi-horizon model on log(baseline h weeks ahead / level at origin)
+    n_estimators: 300
+    max_depth: 4
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 5
+    seed: 42
 
 promo:
-  budget: 50000.0
-  tactics: [tpr, feature, display]
-  fixed_cost: {tpr: 0.0, feature: 500.0, display: 300.0}  # assumed per SKU-week
+  # Trade promotion optimization (MILP, PuLP + HiGHS) on top of the recommended regular prices
+  lift_model: bayes_hierarchical  # shrunk tactic, pantry and seasonal effects for every product
+  tactics: [tpr, feature, display, feature_display]  # BOGO etc. are not in the data
+  depths: [0.10, 0.20, 0.30]  # discount off the regular price, offered with every tactic
+  fixed_cost: {tpr: 0.0, feature: 500.0, display: 300.0, feature_display: 800.0}  # assumed, per SKU-week
+  budget: 150000.0  # trade budget available over the horizon (discount funding + fixed fees)
   max_promos_per_sku: 4
-  min_gap_weeks: 3
+  min_gap_weeks: 3  # weeks between promos of one SKU (>= pantry lags, so dips never overlap)
+  max_feature_slots: 10  # SKUs in the weekly circular
+  max_display_slots: 12  # SKUs on secondary display per week
+  frontier_points: 16  # budgets solved from 0 to the unconstrained spend
+  min_marginal_return: 0.25  # recommended budget: last step returning >= $0.25 of goal per $1
+  mip_gap: 0.001
+  time_limit_seconds: 60

@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from src.schema import Col, Tactic
+from src.schema import Col, ForecastMethod, Tactic
 from src.utils.exceptions import MissingFileError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +31,12 @@ BASELINE_SUMMARY_PATH = DATA_PROCESSED / "baseline_summary.parquet"
 ELASTICITY_DRAWS_PATH = DATA_PROCESSED / "elasticity_draws.parquet"
 RECOMMENDATIONS_PATH = DATA_PROCESSED / "price_recommendations.parquet"
 OPTIMIZATION_SUMMARY_PATH = DATA_PROCESSED / "optimization_summary.parquet"
+FORECAST_PATH = DATA_PROCESSED / "forecast.parquet"
+FORECAST_BACKTEST_PATH = DATA_PROCESSED / "forecast_backtest.parquet"
+PROMO_CANDIDATES_PATH = DATA_PROCESSED / "promo_candidates.parquet"
+PROMO_PLAN_PATH = DATA_PROCESSED / "promo_plan.parquet"
+BUDGET_FRONTIER_PATH = DATA_PROCESSED / "budget_frontier.parquet"
+PROMO_SUMMARY_PATH = DATA_PROCESSED / "promo_summary.parquet"
 FIGURES = ROOT / "reports" / "figures"
 
 
@@ -264,20 +271,62 @@ class BaselineConfig(_Frozen):
     promo_lookback_weeks: int
 
 
+class XgboostConfig(_Frozen):
+    """Booster settings for the global XGBoost baseline forecaster."""
+
+    n_estimators: int
+    max_depth: int
+    learning_rate: float
+    subsample: float
+    colsample_bytree: float
+    min_child_weight: float
+    seed: int
+
+
 class ForecastConfig(_Frozen):
-    """Forecast horizon in weeks from the last observed week."""
+    """Forecast horizon, method choice and challenger settings.
+
+    `method: auto` uses the method with the lowest holdout WAPE in the backtest.
+    """
 
     horizon_weeks: int
+    method: Literal["auto"] | ForecastMethod = "auto"
+    sarimax_order: tuple[int, int, int] = (0, 1, 1)
+    xgboost: XgboostConfig
 
 
 class PromoConfig(_Frozen):
-    """High-level promo budget settings; tactic fixed costs are assumptions."""
+    """Trade promotion optimization: tactics, depths, assumed costs and plan rules.
 
-    budget: float
+    Every tactic is offered at every depth; fixed costs are per SKU-week assumptions.
+    The budget caps trade spend (discount funding + fixed fees) over the horizon.
+    """
+
+    lift_model: ModelName
     tactics: list[Tactic]
+    depths: list[float]
     fixed_cost: dict[Tactic, float]
+    budget: float
     max_promos_per_sku: int
     min_gap_weeks: int
+    max_feature_slots: int
+    max_display_slots: int
+    frontier_points: int
+    min_marginal_return: float
+    mip_gap: float
+    time_limit_seconds: float
+
+    @model_validator(mode="after")
+    def _check_tactics(self) -> PromoConfig:
+        """Every tactic needs a fixed cost; depths must lie in (0, 1)."""
+        missing = [t for t in self.tactics if t not in self.fixed_cost]
+        if missing:
+            raise ValueError(f"promo.fixed_cost is missing {missing}")
+        if not all(0 < d < 1 for d in self.depths):
+            raise ValueError("promo.depths must be in (0, 1)")
+        if self.frontier_points < 2:
+            raise ValueError("promo.frontier_points must be >= 2")
+        return self
 
 
 _CACHE: dict[Path, Config] = {}

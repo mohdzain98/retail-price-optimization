@@ -8,15 +8,11 @@ Used for aggregators, product filters, feature steps and pipeline stages.
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar
 
 from src.utils.exceptions import ConfigError
 
-K = TypeVar("K", bound=Hashable)
-T = TypeVar("T", bound=type)
 
-
-class Registry(Generic[K, T]):
+class Registry[K: Hashable, T: type]:
     """Maps a key (taken from `key_attr` on each class) to a registered class.
 
     Keeps registration order, so iteration order is definition order.
