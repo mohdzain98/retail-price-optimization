@@ -1,6 +1,6 @@
 """Command-line entry point and composition root for pipeline stages.
 
-Usage: python -m src.pipeline {prep,elasticity} [--no-cache]
+Usage: python -m src.pipeline {prep,elasticity,baseline} [--no-cache]
 Each Stage registers in STAGES and wires its layer's facade from config and
 paths; PipelineCli parses arguments and runs the chosen stage.
 """
@@ -18,8 +18,9 @@ from typing import ClassVar
 
 import pandas as pd
 
-from src.config import DATA_PROCESSED, PANEL_PATH, Config
-from src.elasticity import ElasticityFactory, ElasticityOutputs
+from src.baseline import BaselineFactory, BaselineOutputs
+from src.config import DATA_PROCESSED, ELASTICITY_MODELS_PATH, ELASTICITY_PATH, PANEL_PATH, Config
+from src.elasticity import ElasticityFactory, ElasticityOutputs, ModelStore
 from src.prep import DataPrepFactory, LoaderSettings
 from src.utils import AppLogger, MissingFileError, Registry, RPOError
 
@@ -31,6 +32,7 @@ class StageName(StrEnum):
 
     PREP = "prep"
     ELASTICITY = "elasticity"
+    BASELINE = "baseline"
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,22 @@ class ElasticityStage(Stage):
             raise MissingFileError(f"{PANEL_PATH} not found; run `make prep` first")
         service = ElasticityFactory(self._cfg, ElasticityOutputs.default()).build()
         service.run(pd.read_parquet(PANEL_PATH))
+
+
+@STAGES.register
+class BaselineStage(Stage):
+    """Phase 3: panel + elasticities + fitted models -> baseline and due-to tables."""
+
+    name = StageName.BASELINE
+
+    def run(self) -> None:
+        """Decompose volume into baseline and lifts with each product's model."""
+        for path, stage in ((PANEL_PATH, "prep"), (ELASTICITY_PATH, "elasticity")):
+            if not path.exists():
+                raise MissingFileError(f"{path} not found; run `make {stage}` first")
+        models = ModelStore(ELASTICITY_MODELS_PATH).load()
+        service = BaselineFactory(self._cfg, models, BaselineOutputs.default()).build()
+        service.run(pd.read_parquet(PANEL_PATH), pd.read_parquet(ELASTICITY_PATH))
 
 
 class PipelineCli:

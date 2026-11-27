@@ -8,6 +8,7 @@ model registers under ELASTICITY_MODELS; HoldoutScorer computes test WAPE.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
@@ -100,6 +101,15 @@ class ElasticityModel(ABC):
     @abstractmethod
     def predict(self, frame: pd.DataFrame) -> pd.Series:
         """Predicted ln_units aligned to frame's index."""
+
+    def contribution(self, frame: pd.DataFrame, columns: Sequence[str]) -> pd.Series:
+        """Log-scale effect of `columns`: prediction minus prediction with them set to zero.
+
+        Model-agnostic decomposition (equals sum(coef * x) for linear predictors).
+        """
+        present = [c for c in columns if c in frame.columns]
+        switched_off = frame.assign(**{c: 0.0 for c in present})
+        return self.predict(frame) - self.predict(switched_off)
 
     def save_artifacts(self, directory: Path) -> None:
         """Persist model-specific artifacts; the default model has none to write."""

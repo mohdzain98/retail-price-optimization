@@ -10,7 +10,7 @@ else
   RUN := env PATH="$(abspath $(VENV))/bin:$$PATH"
 endif
 
-.PHONY: setup install hooks data-check prep elasticity loc lint format test check app
+.PHONY: setup install hooks data-check prep elasticity baseline loc lint format test check app
 
 setup:  ## one-time setup: env, deps, .env, git hooks, data check
 	USE_UV=$(USE_UV) ./scripts/setup.sh
@@ -35,6 +35,9 @@ prep:  ## Phase 1: raw workbook -> data/processed/panel.parquet
 
 elasticity:  ## Phase 2: panel -> data/processed/elasticities*.parquet
 	$(RUN) python -m src.pipeline elasticity
+
+baseline:  ## Phase 3: top-down baseline + due-to decomposition
+	$(RUN) python -m src.pipeline baseline
 
 loc:  ## lines of code: Python (gnost) + notebooks + GitHub language share
 	$(RUN) python scripts/loc.py

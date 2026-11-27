@@ -1,6 +1,6 @@
 # Retail Price Optimization
 
-> 🚧 Work in progress: Phases 0–2 done (setup, data prep, elasticity); Phase 3 (baseline) next.
+> 🚧 Work in progress: Phases 0–3 done (setup, data prep, elasticity, baseline); Phase 4 (NLopt price optimization) next.
 
 End-to-end **Revenue Growth Management (RGM)** pipeline on the dunnhumby *Breakfast at the Frat* dataset:
 
@@ -16,6 +16,7 @@ End-to-end **Revenue Growth Management (RGM)** pipeline on the dunnhumby *Breakf
 make setup        # one-time: env + deps, .env, git hooks, dataset check (scripts/setup.sh)
 make prep         # Phase 1: raw xlsx -> data/processed/panel.parquet
 make elasticity   # Phase 2: regular + promo elasticities, 4 models, RGMx-style selection (~4 min)
+make baseline     # Phase 3: RGMx top-down baseline + due-to decomposition (seconds)
 make check        # lint + types + tests + pre-commit
 ```
 

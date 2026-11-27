@@ -119,6 +119,10 @@ class BayesianHierarchical(ElasticityModel):
         alpha = frame[Col.UPC].map(self._means.alpha)
         return (alpha + price_part + self._control_effect(frame)).astype(float)
 
+    def __getstate__(self) -> dict:
+        """Pickle without the (large) draws; they are saved separately as parquet."""
+        return {**self.__dict__, "_draws": pd.DataFrame()}
+
     def save_artifacts(self, directory: Path) -> None:
         """Write posterior elasticity draws (long format) for robustness analysis."""
         directory.mkdir(parents=True, exist_ok=True)

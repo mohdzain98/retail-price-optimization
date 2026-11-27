@@ -1,8 +1,8 @@
 # Methodology
 
 How the pipeline turns weekly retail data into price recommendations, the assumptions behind each step, and where
-each approach comes from. Sections are added as phases land. Implemented so far: data preparation (§1) and price
-elasticity (§2).
+each approach comes from. Sections are added as phases land. Implemented so far: data preparation (§1), price elasticity
+(§2) and baseline decomposition (§3).
 
 ---
 
@@ -171,6 +171,88 @@ Figures: `02_elasticity_forest.png` (regular), `02_promo_elasticity_forest.png`,
 
 ---
 
+## 3. Baseline and due-to decomposition
+
+### 3.1 Definition
+
+The **baseline** is the volume a product would sell in a week at its regular price, with no temporary discount, no
+feature or display, and no post-promotion dip. Holidays, seasonality and the trend stay in it. Phase 4 optimizes the
+regular price on top of this baseline.
+
+### 3.2 Top-down formula (RGMx)
+
+The baseline is built **top-down**: the promotional effects are removed from *actual* volume. This keeps it anchored to
+what really sold, unlike a bottom-up model prediction.
+
+```
+baseline_t = exp( ln units_t − price_t − promo_t − pantry_t − error_t )
+```
+
+| Effect term | Definition |
+|---|---|
+| `price` | final promo elasticity δ × ln(price ÷ base price): only the temporary-discount deviation |
+| `promo` | contribution of feature, display, feature+display and TPR from the product's model; kept only in promo weeks and only if positive |
+| `pantry` | contribution of `pl1..pl3`; usually negative, so removing it **restores** the post-promotion dip |
+| `error` | residual of the product's model, kept only in promo weeks with a positive promo effect and floored at 0 |
+
+- **Contributions are model-agnostic.** Each one is computed as the model's prediction minus its prediction with those
+  drivers set to zero. For a linear model this equals Σ coefficient × driver.
+- **Which model:** each product uses its selected model from Phase 2. If none passed the gates, it uses the first model
+  in priority. Ineligible products (no model) get the price effect only, using their imputed δ.
+
+### 3.3 Bad-baseline rules (RGMx)
+
+Week-to-week noise in consecutive promo weeks can make the raw baseline implausible. Each rule flags such weeks and
+names its fix:
+
+| Rule | Flags | Fix |
+|---|---|---|
+| 2 · zero baseline | baseline = 0 while units > 0 | actual volume |
+| 3 · implausibly high | baseline > 1.5 × units, or baseline > units with no promo in the last 3 weeks | actual volume |
+| 4 · promo dip | promo week, baseline below both neighbours | 7-week centred rolling mean |
+| 5 · promo spike | promo week, no holiday, baseline above both neighbours | rolling mean |
+| 6 · promo drop | promo week, baseline < 75% of a neighbour | rolling mean |
+
+- **Precedence:** rolling-mean fixes win over actual-volume fixes, as in RGMx.
+- **Edges:** RGMx fills missing neighbours with 0; here a series edge simply has no neighbour, so the neighbour rules
+  cannot fire there.
+- **Float tolerance:** comparisons use a small relative tolerance, so `exp(ln units)` never counts as "above units".
+
+### 3.4 Due-to decomposition
+
+Incremental units (`actual − baseline`) are split across the effect terms in proportion to their log effects, so the
+lifts always sum exactly to the incremental units. Weeks with no effects but a corrected baseline carry the difference
+as error lift.
+
+### 3.5 Results
+
+On the real data, 1,502 of 8,304 product-weeks (18%) received a rolling-mean fix, all from the promo-week rules (dip
+862, spike 544, drop 306). The zero and implausibly-high rules did not fire.
+
+| Category | Baseline | Price lift | Promo lift | Pantry | Error |
+|---|---|---|---|---|---|
+| Bag snacks | 85.0% | 4.8% | 7.2% | +1.6% | 1.4% |
+| Cold cereal | 72.9% | 14.2% | 10.2% | −0.3% | 3.0% |
+| Frozen pizza | 63.8% | 21.7% | 12.6% | −0.4% | 2.3% |
+| Oral hygiene | 78.0% | 19.0% | 2.8% | −1.3% | 1.6% |
+| **All** | **75.0%** | 13.0% | 9.4% | +0.1% | 2.5% |
+
+- **Frozen pizza** is the most promotion-dependent category: 36% of its volume is incremental.
+- **Bag snacks** sell mostly at baseline.
+- **Oral care** responds to price cuts, not merchandising.
+- **Cereal promotions** roughly triple weekly volume (median promo-week lift +197%).
+
+Figures: `03_due_to_by_category.png`, `03_baseline_weekly.png`.
+
+### 3.6 Limitations
+
+- **Promo-week error.** Attributing the positive promo-week residual to promotion (as RGMx does) can overstate
+  promotional lift when an unrelated shock happens in a promo week.
+- **Promo flag threshold.** A 5% discount marks 33% of product-weeks as promo weeks. A stricter threshold would change
+  which weeks the rules can touch.
+
+---
+
 ## Sources of the approach
 
 - **Overall pipeline (elasticity → baseline → NLopt optimization)** follows the pricing workflow described in
@@ -181,7 +263,7 @@ Figures: `02_elasticity_forest.png` (regular), `02_promo_elasticity_forest.png`,
   - the trend fitted on model residuals;
   - per-pair quality gates (MAPE, R², elasticity range) with model priority;
   - hierarchical imputation;
-  - the top-down baseline (Phase 3).
+  - the top-down baseline with its effect terms and bad-baseline rules (Phase 3).
 - **Model specification and estimators** are standard econometrics, chosen and implemented for this project:
   - the log-log constant-elasticity demand model, here with a regular/promo price split;
   - fixed and random effects;
