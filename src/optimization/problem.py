@@ -1,8 +1,8 @@
 """The pricing problem: objective, constraints and KPIs over relative prices r = P / P0.
 
-Objectives (profit, revenue, weighted) and constraints (volume floor, average
-increase cap, private-label price ladder) register in their own registries and all
-provide analytic gradients. Every constraint is written as fc(r) <= 0 (NLopt form).
+Objectives (profit, revenue, weighted: one formula with an effective cost) and
+constraints (volume floor, average increase cap, private-label ladder) register in
+their own registries with analytic gradients. Constraints are fc(r) <= 0 (NLopt form).
 """
 
 from __future__ import annotations
@@ -25,7 +25,11 @@ PRIVATE_LABEL = "PRIVATE LABEL"
 
 
 class ObjectiveFn(ABC):
-    """Weekly portfolio value to maximise, with its gradient in r."""
+    """Weekly portfolio value sum((P - c_eff) Q) to maximise, with its gradient in r.
+
+    Every objective is profit with an objective-specific effective unit cost:
+    profit uses c, revenue uses 0, weighted uses w * c.
+    """
 
     objective: ClassVar[Objective]
 
@@ -35,25 +39,20 @@ class ObjectiveFn(ABC):
         """Build from optimization config."""
 
     @abstractmethod
+    def effective_cost(self, inputs: OptimizationInputs) -> np.ndarray:
+        """Unit cost the objective charges against price (per product)."""
+
     def value_and_grad(
         self, r: np.ndarray, inputs: OptimizationInputs, demand: DemandCurve
     ) -> tuple[float, np.ndarray]:
-        """(objective, d objective / d r)."""
+        """(sum (P - c_eff) Q, gradient d/dr)."""
+        p0, beta, base = inputs.p0, inputs.beta, inputs.base_volume
+        price, q, dq = r * p0, demand.volume(r, beta, base), demand.slope(r, beta, base)
+        margin = price - self.effective_cost(inputs)
+        return float(np.sum(margin * q)), p0 * q + margin * dq
 
 
 OBJECTIVES: Registry[Objective, type[ObjectiveFn]] = Registry("objective")
-
-
-def _revenue_profit(
-    r: np.ndarray, inputs: OptimizationInputs, demand: DemandCurve
-) -> tuple[float, np.ndarray, float, np.ndarray]:
-    """Revenue, its gradient, profit and its gradient (shared by all objectives)."""
-    p0, beta, base = inputs.p0, inputs.beta, inputs.base_volume
-    price, q, dq = r * p0, demand.volume(r, beta, base), demand.slope(r, beta, base)
-    margin = price - inputs.cost
-    revenue, d_revenue = float(np.sum(price * q)), p0 * q + price * dq
-    profit, d_profit = float(np.sum(margin * q)), p0 * q + margin * dq
-    return revenue, d_revenue, profit, d_profit
 
 
 @OBJECTIVES.register
@@ -67,17 +66,14 @@ class ProfitObjective(ObjectiveFn):
         """No settings."""
         return cls()
 
-    def value_and_grad(
-        self, r: np.ndarray, inputs: OptimizationInputs, demand: DemandCurve
-    ) -> tuple[float, np.ndarray]:
-        """Profit and gradient."""
-        _, _, profit, d_profit = _revenue_profit(r, inputs, demand)
-        return profit, d_profit
+    def effective_cost(self, inputs: OptimizationInputs) -> np.ndarray:
+        """The unit cost."""
+        return inputs.cost
 
 
 @OBJECTIVES.register
 class RevenueObjective(ObjectiveFn):
-    """Maximise weekly revenue sum(P Q); ignores cost (hits bounds when |beta| < 1)."""
+    """Maximise weekly revenue sum(P Q): profit with zero cost (classic elasticity rule)."""
 
     objective = Objective.REVENUE
 
@@ -86,17 +82,14 @@ class RevenueObjective(ObjectiveFn):
         """No settings."""
         return cls()
 
-    def value_and_grad(
-        self, r: np.ndarray, inputs: OptimizationInputs, demand: DemandCurve
-    ) -> tuple[float, np.ndarray]:
-        """Revenue and gradient."""
-        revenue, d_revenue, _, _ = _revenue_profit(r, inputs, demand)
-        return revenue, d_revenue
+    def effective_cost(self, inputs: OptimizationInputs) -> np.ndarray:
+        """Zero: revenue ignores cost."""
+        return np.zeros_like(inputs.cost)
 
 
 @OBJECTIVES.register
 class WeightedObjective(ObjectiveFn):
-    """w * profit + (1 - w) * revenue: trades margin against top line."""
+    """w * profit + (1 - w) * revenue = sum((P - w c) Q): trades margin against top line."""
 
     objective = Objective.WEIGHTED
 
@@ -108,14 +101,9 @@ class WeightedObjective(ObjectiveFn):
         """Read the profit weight."""
         return cls(cfg.profit_weight)
 
-    def value_and_grad(
-        self, r: np.ndarray, inputs: OptimizationInputs, demand: DemandCurve
-    ) -> tuple[float, np.ndarray]:
-        """Weighted value and gradient."""
-        revenue, d_revenue, profit, d_profit = _revenue_profit(r, inputs, demand)
-        return self._w * profit + (1 - self._w) * revenue, self._w * d_profit + (
-            1 - self._w
-        ) * d_revenue
+    def effective_cost(self, inputs: OptimizationInputs) -> np.ndarray:
+        """w times the unit cost."""
+        return self._w * inputs.cost
 
 
 class Constraint(ABC):
@@ -297,15 +285,17 @@ class ProblemBuilder:
         self._cfg = cfg
         self._names = list(constraint_names) if constraint_names is not None else CONSTRAINTS.keys()
 
-    def build(self, inputs: OptimizationInputs, demand: DemandCurve) -> PricingProblem:
-        """Problem with the configured objective and all registered (or named) constraints."""
+    def build(
+        self, inputs: OptimizationInputs, demand: DemandCurve, objective: Objective | None = None
+    ) -> PricingProblem:
+        """Problem for `objective` (default: first configured) with registered constraints."""
         constraints = tuple(
             CONSTRAINTS.get(name).from_config(self._cfg, inputs) for name in self._names
         )
         return PricingProblem(
             inputs=inputs,
             demand=demand,
-            objective=OBJECTIVES.get(self._cfg.objective).from_config(self._cfg),
+            objective=OBJECTIVES.get(objective or self._cfg.objectives[0]).from_config(self._cfg),
             constraints=constraints,
             bounds=self._cfg.price_bounds,
         )

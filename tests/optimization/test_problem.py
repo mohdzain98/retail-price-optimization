@@ -12,7 +12,7 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from src.config import OptimizationConfig
+from src.config import Objective, OptimizationConfig
 from src.optimization.demand import ConstantElasticity
 from src.optimization.problem import (
     KpiCalculator,
@@ -68,7 +68,14 @@ class TestRevenueObjective:
 
 
 class TestWeightedObjective:
-    """w * profit + (1 - w) * revenue."""
+    """w * profit + (1 - w) * revenue = sum((P - w c) Q)."""
+
+    def test_effective_costs(self) -> None:
+        """Profit charges c, revenue 0, weighted w * c."""
+        inputs = make_inputs([-2.0, -1.5])
+        np.testing.assert_allclose(ProfitObjective().effective_cost(inputs), inputs.cost)
+        np.testing.assert_allclose(RevenueObjective().effective_cost(inputs), 0.0)
+        np.testing.assert_allclose(WeightedObjective(0.5).effective_cost(inputs), 0.5 * inputs.cost)
 
     def test_blend(self) -> None:
         """w = 0.5 is the midpoint of profit and revenue."""
@@ -127,6 +134,8 @@ class TestProblemBuilder:
         """All registered constraints are present by default; none when told so."""
         inputs = make_inputs([-2.0, -1.5])
         assert len(ProblemBuilder(opt_cfg).build(inputs, DEMAND).constraints) == 3
+        revenue = ProblemBuilder(opt_cfg).build(inputs, DEMAND, Objective.REVENUE)
+        assert isinstance(revenue.objective, RevenueObjective)
         assert ProblemBuilder(opt_cfg, constraint_names=[]).build(inputs, DEMAND).constraints == ()
 
 

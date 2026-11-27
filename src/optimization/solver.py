@@ -58,10 +58,13 @@ class NloptSolver:
     Returns NLopt's optimum, or the best feasible point seen if NLopt stops early.
     """
 
-    def __init__(self, algorithm: Algorithm, maxeval: int, xtol_rel: float) -> None:
+    def __init__(
+        self, algorithm: Algorithm, maxeval: int, xtol_rel: float, max_seconds: float = 0.0
+    ) -> None:
         self._algorithm = algorithm
         self._maxeval = maxeval
         self._xtol_rel = xtol_rel
+        self._max_seconds = max_seconds  # 0 = no time limit
 
     @property
     def algorithm(self) -> Algorithm:
@@ -123,6 +126,8 @@ class NloptSolver:
         opt.set_xtol_rel(self._xtol_rel)
         opt.set_ftol_rel(self._xtol_rel)
         opt.set_maxeval(self._maxeval)
+        if self._max_seconds > 0:
+            opt.set_maxtime(self._max_seconds)
         return opt
 
     @staticmethod

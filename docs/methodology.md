@@ -287,7 +287,7 @@ Decision variables are relative prices `r_i = P_i / P₀_i`, all close to 1, whi
 | Elasticity `β` | final **regular-price** elasticity (Phase 2) |
 | Unit cost `c` | `(1 − margin_category) · P₀`, using the assumed margins in config (the data has no cost) |
 | Demand | `Q_i = B_i · r_i^β_i`, the constant-elasticity curve implied by the log-log model |
-| Objective | maximise weekly profit `Σ (P_i − c_i) Q_i` (revenue and a profit/revenue mix are config options) |
+| Objective | maximise `Σ (P_i − c_eff,i) Q_i`, where the **effective cost** sets the goal: profit uses `c`, revenue uses `0`, and a profit/revenue mix uses `w·c`. Both **profit and revenue** are solved in every run and stored side by side |
 
 Constraints, all written as `fc(r) ≤ 0` with analytic Jacobians and tested for sign:
 
@@ -301,7 +301,32 @@ Constraints, all written as `fc(r) ≤ 0` with analytic Jacobians and tested for
 **Correctness check:** for one product with no portfolio constraints, the optimum is the closed form
 `P* = c·β/(1+β)` (for β < −1). A unit test checks that NLopt recovers it.
 
-### 4.3 Solvers
+### 4.3 Pricing-direction rule (RGMx) and the profit version
+
+RGMx states the classic **revenue** rule: if E < −1, lowering price raises revenue; if E > −1, raising price raises
+revenue. Each product's own optimum (no portfolio constraints) is
+
+```
+P* = c_eff · β / (1 + β)   for β < −1, else the upper bound
+```
+
+- **Revenue** (`c_eff = 0`): P* is the lower bound for elastic products and the upper bound for inelastic ones. This is
+  exactly the RGMx rule.
+- **Profit** (`c_eff = c`): **raise if |β| < 1 / margin, cut if |β| > 1 / margin.** With 28–40% margins the cut-off is
+  |β| ≈ 2.5–3.6. A mildly elastic product (β = −1.5) should be *raised*, because the volume a cut wins is worth less than
+  the margin it gives up.
+
+Every recommendation carries `own_optimal_price`, `expected_direction`, `actual_direction` and `rule_status`. A
+`constraint_override` status means a portfolio constraint moved the product against its own optimum. On the real data:
+
+| Goal | Follows the rule | Constraint override |
+|---|---|---|
+| Revenue | 49 / 54 | 5 |
+| Profit | 31 / 54 | 23 (the +5% average cap reallocates moves) |
+
+Inelastic products are never cut under either goal.
+
+### 4.4 Solvers
 
 | Algorithm | Type | Weekly profit | Evaluations | Time |
 |---|---|---|---|---|
@@ -313,12 +338,17 @@ Constraints, all written as `fc(r) ≤ 0` with analytic Jacobians and tested for
 - **ISRES** shows what a global search costs in 54 dimensions.
 - **Scaling matters.** Before the objective and constraints were normalised to O(1), SLSQP stopped early ("roundoff
   limited") at +11.5%.
+- **Time limit.** Each solve is capped at 20 s (`max_seconds`). Under the revenue goal, COBYLA ran into its 20,000
+  evaluation limit (160 s); it now stops at the cap with the same optimum as SLSQP.
 
-### 4.4 Price points, robustness and the linear-formula check
+### 4.5 Price points, safeguard, robustness and the linear-formula check
 
 - **Price points.** The SLSQP optimum is rounded to "9" endings (x.09 … x.99), then repaired. Any product whose
   rounding breaks a constraint is stepped back one price point toward its current price until every constraint holds.
   Rounding keeps +12.9% of the +13.9%.
+- **Safeguard.** If the rounded and repaired prices would score below current prices on the goal being optimised, the
+  current prices are kept and `safeguard_applied` is set. The portfolio total therefore never gets worse than today
+  (by the model). It did not trigger on the real data.
 - **Robustness.** The portfolio is re-solved for 200 posterior draws of the Bayesian elasticities. The 5th–95th
   percentile range of each product's optimal price has median width 8.6% of the current price, and up to 34% for
   products with uncertain elasticities. Wide ranges are candidates for a price test before rollout.
@@ -326,13 +356,19 @@ Constraints, all written as `fc(r) ≤ 0` with analytic Jacobians and tested for
   give +12.9% profit at only −0.2% volume. The linear formula over-predicts how much volume a price rise loses. That is
   only a 0.7-point profit gap with the guardrails on, but 2.1 points without them (27.8% vs 25.7%).
 
-### 4.5 Results
+### 4.6 Results
 
-Recommended (rounded) prices, baseline business, weekly:
+Recommended (rounded) prices, baseline business, weekly change vs current:
 
-| Volume | Revenue | Profit | Annual profit impact |
-|---|---|---|---|
-| −0.2% | +6.2% | +12.9% | ≈ +$305k on ≈ $2.4M baseline profit |
+| Goal | Volume | Revenue | Profit | Annual profit impact |
+|---|---|---|---|---|
+| **Profit** | −0.2% | +6.2% | **+12.9%** | ≈ +$305k on ≈ $2.4M baseline profit |
+| Revenue | +23.4% | **+15.1%** | −18.9% | ≈ −$446k |
+
+**Maximising revenue cuts prices on elastic products.** It buys volume and revenue but gives up a fifth of the profit.
+That is why profit is the default goal. The revenue run is kept so the simulator can show the trade-off.
+
+Details below are for the **profit** goal.
 
 - **Direction:** 25 products go up, 27 go down and 2 stay flat.
 - **Median moves by category:**
@@ -346,9 +382,10 @@ Recommended (rounded) prices, baseline business, weekly:
 - **Without the guardrails** (bounds only), profit would rise 27.8% from a 15.6% average price increase. The
   constraints hold back about half of that on purpose.
 
-Figures: `04_scenarios.png`, `04_price_changes.png`, `04_profit_curve.png`.
+Figures (one set per goal): `04_scenarios_{profit,revenue}.png`, `04_price_changes_{profit,revenue}.png`,
+`04_objective_curve_{profit,revenue}.png`.
 
-### 4.6 Limitations
+### 4.7 Limitations
 
 - **Assumed margins.** Profit gains scale with the margin assumption (28–40% by category).
 - **Regular-price business only.** Promotions keep their current depth and calendar. Phase 5 plans promotions.

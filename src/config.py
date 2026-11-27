@@ -222,7 +222,7 @@ class OptimizationConfig(_Frozen):
     Price bounds are multipliers of the current price (e.g. 0.8-1.2).
     """
 
-    objective: Objective
+    objectives: list[Objective]
     profit_weight: float
     demand_form: DemandForm
     price_bounds: tuple[float, float]
@@ -231,6 +231,7 @@ class OptimizationConfig(_Frozen):
     ladder_min_gap: float
     algorithms: list[Algorithm]
     maxeval: int
+    max_seconds: float
     xtol_rel: float
     price_endings: list[float]
     reference_weeks: int
@@ -246,6 +247,8 @@ class OptimizationConfig(_Frozen):
             raise ValueError("price_bounds must satisfy 0 < lower < 1 < upper")
         if not 0 <= self.profit_weight <= 1:
             raise ValueError("profit_weight must be in [0, 1]")
+        if not self.objectives:
+            raise ValueError("objectives must list at least one objective")
         return self
 
 

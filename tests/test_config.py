@@ -26,7 +26,7 @@ class TestConfig:
     def test_shipped_config_loads(self) -> None:
         """The committed config validates into enums and canonical columns."""
         cfg = Config.load()
-        assert cfg.optimization.objective is Objective.PROFIT
+        assert cfg.optimization.objectives[0] is Objective.PROFIT
         assert cfg.data.grain is Grain.PRODUCT_WEEK
         assert cfg.data.columns[Sheet.TRANSACTIONS]["UNITS"] is Col.UNITS
         assert Config.load() is cfg  # cached
