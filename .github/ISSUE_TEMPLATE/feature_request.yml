@@ -1,0 +1,49 @@
+name: Feature or method idea
+description: Propose a new model, constraint, forecaster, promo tactic, chart or app feature.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or question it answers
+      description: What business or modelling question can't be answered today?
+      placeholder: "The optimizer ignores substitution between products, so ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: The method and where it fits. Most extensions are a new class in an existing registry; see docs/architecture.md, "Extension points".
+      placeholder: "A new Constraint registered in CONSTRAINTS that ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Elasticity models
+        - Baseline
+        - Price optimization
+        - Forecasting
+        - Promo planning (MILP)
+        - Streamlit app
+        - Docs / notebooks
+        - Tooling / CI
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: How would we know it works?
+      description: Tests, a known answer, a backtest or a metric to compare against today's results.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      description: To work on any issue, comment on it that you're working on it first (see CONTRIBUTING.md).
+      options:
+        - label: I would like to work on this myself.

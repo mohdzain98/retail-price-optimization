@@ -13,6 +13,10 @@ new elasticity models, constraints, forecasters, promo planners or simulator fea
 
 ## Workflow
 
+- **Claim an issue before you start.** Comment on it that you are working on it (for example "I'm working on this"),
+  so two people don't build the same thing. Skip issues where someone else has already commented that they are on
+  it. If you stop, comment again so someone else can pick it up. For a change with no issue yet, open one first and
+  claim it the same way.
 - Branch from `main` (for example `feature/cross-price-effects` or `fix/frontier-hurdle`) and open the pull request
   against `main`.
 - Keep a pull request to one topic, and describe what changed and how you checked it.

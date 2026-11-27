@@ -30,3 +30,4 @@ data/users.db*
 
 # Internal planning notes (kept locally, not published)
 docs/plans
+docs/good_first_issues.md
