@@ -19,7 +19,11 @@ data/processed/elasticities.parquet     final guard-railed elasticity per produc
    ▼
 data/processed/baseline.parquet         weekly baseline, effect terms, rule flags, due-to lifts
                baseline_summary.parquet
-   │  (Phase 4+) optimization → planning
+   │  make optimize    (src.optimization → OptimizationService)
+   ▼
+data/processed/price_recommendations.parquet   per-product optimal / recommended prices + KPIs
+               optimization_summary.parquet    solver and scenario comparison
+   │  (Phase 5) forecast + promo planning
    ▼
 reports/figures/*.png                   charts rendered by src.plots (via the notebooks)
 ```
@@ -39,7 +43,8 @@ src/
   elasticity/      base.py · frequentist.py · bayes.py · guardrails.py (QualityGates, ModelSelector,
                    HierarchicalImputer) · service.py
   baseline/        effects.py · rules.py · decomposition.py · service.py
-  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py · baseline.py
+  optimization/    inputs.py · demand.py · problem.py · solver.py · robustness.py · service.py
+  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py · baseline.py · optimization.py
 notebooks/         thin presentation notebooks (no logic)
 tests/             mirrors src/ (one test class per production class)
 ```
@@ -55,6 +60,7 @@ Each layer exposes one facade, built by a factory (the composition root):
 | `src.prep` | `DataPrepService.run()` | `DataPrepFactory(cfg, loader_settings, output_path)` | `PrepStage` |
 | `src.elasticity` | `ElasticityService.run(panel)` | `ElasticityFactory(cfg, outputs)` | `ElasticityStage` |
 | `src.baseline` | `BaselineService.run(panel, final)` | `BaselineFactory(cfg, models, outputs)` | `BaselineStage` |
+| `src.optimization` | `OptimizationService.run(baseline, final, draws)` | `OptimizationFactory(cfg, outputs)` | `OptimizeStage` |
 
 Dependencies are injected through `__init__`. Only factories and pipeline stages construct objects, which is why
 tests can swap in temporary paths and small synthetic data. Lower layers never import higher ones: prep knows
@@ -72,6 +78,9 @@ New behaviour is added by registering a class, not by editing an `if/elif` chain
 | `FEATURE_STEPS` (`prep/features.py`) | `FeatureStep` | name | engineered feature |
 | `ELASTICITY_MODELS` (`elasticity/base.py`) | `ElasticityModel` | `ModelName` | elasticity model |
 | `BASELINE_RULES` (`baseline/rules.py`) | `BaselineRule` | name | bad-baseline rule (with its fix) |
+| `DEMAND_CURVES` (`optimization/demand.py`) | `DemandCurve` | `DemandForm` | demand curve (value + slope) |
+| `OBJECTIVES` (`optimization/problem.py`) | `ObjectiveFn` | `Objective` | objective (value + gradient) |
+| `CONSTRAINTS` (`optimization/problem.py`) | `Constraint` | name | pricing constraint (`fc ≤ 0` + Jacobian) |
 | `STAGES` (`pipeline.py`) | `Stage` | `StageName` | pipeline stage |
 
 For example, to add an elasticity model:

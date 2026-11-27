@@ -93,15 +93,19 @@ cost:
 optimization:
   objective: profit  # profit | revenue | weighted
   profit_weight: 1.0  # used when objective = weighted
-  demand_form: constant_elasticity  # constant_elasticity | linear
-  price_bounds: [0.8, 1.2]  # multipliers of current price
-  volume_floor: 0.95  # portfolio volume >= floor * current volume
-  max_avg_price_increase: 0.05
-  ladder_min_gap: 0.10  # premium >= (1 + gap) * value tier
-  algorithms: [LD_SLSQP, LN_COBYLA, GN_ISRES]
-  maxeval: 2000
+  demand_form: constant_elasticity  # constant_elasticity | linear (linear is the RGMx/article formula)
+  price_bounds: [0.8, 1.2]  # multipliers of the current regular price
+  volume_floor: 0.95  # portfolio baseline volume >= floor * current
+  max_avg_price_increase: 0.05  # revenue-weighted average price change <= +5%
+  ladder_min_gap: 0.10  # branded unit price >= (1 + gap) * private-label unit price (same sub-category)
+  algorithms: [LD_SLSQP, LN_COBYLA, GN_ISRES]  # first is the primary solver
+  maxeval: 20000
   xtol_rel: 1.0e-8
-  price_endings: [0.49, 0.99]
+  price_endings: [0.09, 0.19, 0.29, 0.39, 0.49, 0.59, 0.69, 0.79, 0.89, 0.99]  # "9" endings, 10c grid
+  reference_weeks: 13  # current price = median base price; base volume = mean baseline, last N weeks
+  annualize_weeks: 52
+  robustness_draws: 200  # posterior elasticity draws re-optimized for the price range
+  seed: 42
 
 baseline:
   # RGMx top-down baseline: exp(ln_units - price - promo - pantry - promo-week error effects)

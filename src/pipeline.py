@@ -1,6 +1,6 @@
 """Command-line entry point and composition root for pipeline stages.
 
-Usage: python -m src.pipeline {prep,elasticity,baseline} [--no-cache]
+Usage: python -m src.pipeline {prep,elasticity,baseline,optimize} [--no-cache]
 Each Stage registers in STAGES and wires its layer's facade from config and
 paths; PipelineCli parses arguments and runs the chosen stage.
 """
@@ -19,8 +19,17 @@ from typing import ClassVar
 import pandas as pd
 
 from src.baseline import BaselineFactory, BaselineOutputs
-from src.config import DATA_PROCESSED, ELASTICITY_MODELS_PATH, ELASTICITY_PATH, PANEL_PATH, Config
+from src.config import (
+    BASELINE_PATH,
+    DATA_PROCESSED,
+    ELASTICITY_DRAWS_PATH,
+    ELASTICITY_MODELS_PATH,
+    ELASTICITY_PATH,
+    PANEL_PATH,
+    Config,
+)
 from src.elasticity import ElasticityFactory, ElasticityOutputs, ModelStore
+from src.optimization import OptimizationFactory, OptimizationOutputs
 from src.prep import DataPrepFactory, LoaderSettings
 from src.utils import AppLogger, MissingFileError, Registry, RPOError
 
@@ -33,6 +42,7 @@ class StageName(StrEnum):
     PREP = "prep"
     ELASTICITY = "elasticity"
     BASELINE = "baseline"
+    OPTIMIZE = "optimize"
 
 
 @dataclass(frozen=True)
@@ -102,6 +112,26 @@ class BaselineStage(Stage):
         models = ModelStore(ELASTICITY_MODELS_PATH).load()
         service = BaselineFactory(self._cfg, models, BaselineOutputs.default()).build()
         service.run(pd.read_parquet(PANEL_PATH), pd.read_parquet(ELASTICITY_PATH))
+
+
+@STAGES.register
+class OptimizeStage(Stage):
+    """Phase 4: baseline + elasticities -> NLopt price recommendations."""
+
+    name = StageName.OPTIMIZE
+
+    def run(self) -> None:
+        """Solve the portfolio pricing problem and write recommendations."""
+        for path, stage in ((BASELINE_PATH, "baseline"), (ELASTICITY_PATH, "elasticity")):
+            if not path.exists():
+                raise MissingFileError(f"{path} not found; run `make {stage}` first")
+        draws = (
+            pd.read_parquet(ELASTICITY_DRAWS_PATH)
+            if ELASTICITY_DRAWS_PATH.exists()
+            else pd.DataFrame()
+        )
+        service = OptimizationFactory(self._cfg, OptimizationOutputs.default()).build()
+        service.run(pd.read_parquet(BASELINE_PATH), pd.read_parquet(ELASTICITY_PATH), draws)
 
 
 class PipelineCli:

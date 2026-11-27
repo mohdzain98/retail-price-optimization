@@ -2,7 +2,7 @@
 
 How the pipeline turns weekly retail data into price recommendations, the assumptions behind each step, and where
 each approach comes from. Sections are added as phases land. Implemented so far: data preparation (§1), price elasticity
-(§2) and baseline decomposition (§3).
+(§2), baseline decomposition (§3) and price optimization (§4).
 
 ---
 
@@ -253,6 +253,110 @@ Figures: `03_due_to_by_category.png`, `03_baseline_weekly.png`.
 
 ---
 
+## 4. Price optimization (NLopt)
+
+### 4.1 Why not the linear formula
+
+The RGMx notebook and the source article optimise:
+
+```
+ΔVolume = Baseline × Elasticity × (P − P̄)/P̄,   maximise (Baseline + ΔVolume) × P
+```
+
+This leaves out several things an optimal price depends on:
+
+- **Wrong demand curve.** It is a first-order (linear) approximation of the log-log model the elasticity came from. At
+  β = −2 and ±20% it predicts −40% / +40% volume, where the true curve gives −31% / +56%.
+- **Revenue, not profit.** Without costs, inelastic products always run to the upper price bound.
+- **Mismatched reference.** P̄ is the mean of all prices (promo weeks included), while the baseline is defined at the
+  regular price.
+- **No portfolio view.** No volume, price-index or ladder constraints.
+- **No uncertainty.** A single elasticity value is used.
+
+The notebook also had implementation bugs: a log baseline used as volume, a volume constraint with the wrong sign for
+NLopt, and a ×1000 price scaling.
+
+### 4.2 Formulation
+
+Decision variables are relative prices `r_i = P_i / P₀_i`, all close to 1, which keeps the problem well-conditioned.
+
+| Piece | Definition |
+|---|---|
+| Current price `P₀` | median base price over the last 13 weeks |
+| Base volume `B` | mean weekly baseline over the same weeks (Phase 3) |
+| Elasticity `β` | final **regular-price** elasticity (Phase 2) |
+| Unit cost `c` | `(1 − margin_category) · P₀`, using the assumed margins in config (the data has no cost) |
+| Demand | `Q_i = B_i · r_i^β_i`, the constant-elasticity curve implied by the log-log model |
+| Objective | maximise weekly profit `Σ (P_i − c_i) Q_i` (revenue and a profit/revenue mix are config options) |
+
+Constraints, all written as `fc(r) ≤ 0` with analytic Jacobians and tested for sign:
+
+| Constraint | Form |
+|---|---|
+| Bounds | `0.8 ≤ r_i ≤ 1.2` |
+| Volume floor | `0.95 − Σ Q(r) / Σ Q(1) ≤ 0` |
+| Average price change | `Σ w_i r_i − 1.05 ≤ 0`, with `w` = current revenue shares |
+| Price ladder | `1.1 · (unit price_PL / unit price_brand) · r_PL − r_brand ≤ 0` for private-label/brand pairs in the same sub-category and size unit; only ladders that already hold are enforced (90 pairs) |
+
+**Correctness check:** for one product with no portfolio constraints, the optimum is the closed form
+`P* = c·β/(1+β)` (for β < −1). A unit test checks that NLopt recovers it.
+
+### 4.3 Solvers
+
+| Algorithm | Type | Weekly profit | Evaluations | Time |
+|---|---|---|---|---|
+| **LD_SLSQP** (primary) | local, gradient (analytic) | **+13.93%** | 106 | 0.4 s |
+| LN_COBYLA | local, derivative-free | +13.92% | 2,513 | 10.6 s |
+| GN_ISRES | global, evolutionary | +11.14% | 20,000 (limit) | 2.6 s |
+
+- **SLSQP and COBYLA agree.** The problem is smooth with a single optimum, so the gradient method is fastest by far.
+- **ISRES** shows what a global search costs in 54 dimensions.
+- **Scaling matters.** Before the objective and constraints were normalised to O(1), SLSQP stopped early ("roundoff
+  limited") at +11.5%.
+
+### 4.4 Price points, robustness and the linear-formula check
+
+- **Price points.** The SLSQP optimum is rounded to "9" endings (x.09 … x.99), then repaired. Any product whose
+  rounding breaks a constraint is stepped back one price point toward its current price until every constraint holds.
+  Rounding keeps +12.9% of the +13.9%.
+- **Robustness.** The portfolio is re-solved for 200 posterior draws of the Bayesian elasticities. The 5th–95th
+  percentile range of each product's optimal price has median width 8.6% of the current price, and up to 34% for
+  products with uncertain elasticities. Wide ranges are candidates for a price test before rollout.
+- **Linear formula, scored on the true curve.** Its prices give +13.2% profit at −2.3% volume. The recommended prices
+  give +12.9% profit at only −0.2% volume. The linear formula over-predicts how much volume a price rise loses. That is
+  only a 0.7-point profit gap with the guardrails on, but 2.1 points without them (27.8% vs 25.7%).
+
+### 4.5 Results
+
+Recommended (rounded) prices, baseline business, weekly:
+
+| Volume | Revenue | Profit | Annual profit impact |
+|---|---|---|---|
+| −0.2% | +6.2% | +12.9% | ≈ +$305k on ≈ $2.4M baseline profit |
+
+- **Direction:** 25 products go up, 27 go down and 2 stay flat.
+- **Median moves by category:**
+  - bag snacks +7.1%;
+  - cold cereal +2.8%;
+  - frozen pizza −5.1%;
+  - oral hygiene −6.5%, since elastic premium mouthwashes go to the −20% bound.
+- **Binding constraint:** the +5% average cap is the one that binds. The optimizer therefore *cuts* prices on elastic,
+  high-revenue products (for example Newman's Own pizza, below its own optimum) to fund larger increases on inelastic
+  ones (cereal, pretzels).
+- **Without the guardrails** (bounds only), profit would rise 27.8% from a 15.6% average price increase. The
+  constraints hold back about half of that on purpose.
+
+Figures: `04_scenarios.png`, `04_price_changes.png`, `04_profit_curve.png`.
+
+### 4.6 Limitations
+
+- **Assumed margins.** Profit gains scale with the margin assumption (28–40% by category).
+- **Regular-price business only.** Promotions keep their current depth and calendar. Phase 5 plans promotions.
+- **No cross-price effects or competitor reaction.** Each product's demand depends only on its own price.
+- **Local elasticity.** The elasticity is estimated within the observed price range. Moves near ±20% extrapolate.
+
+---
+
 ## Sources of the approach
 
 - **Overall pipeline (elasticity → baseline → NLopt optimization)** follows the pricing workflow described in
@@ -270,4 +374,4 @@ Figures: `03_due_to_by_category.png`, `03_baseline_weekly.png`.
   - hierarchical Bayesian partial pooling, as in Gelman & Hill, *Data Analysis Using Regression and
     Multilevel/Hierarchical Models* (2007);
   - LOESS smoothing (Cleveland, 1979).
-- **Libraries:** statsmodels (OLS, MixedLM, LOWESS) and PyMC (NUTS sampling).
+- **Libraries:** statsmodels (OLS, MixedLM, LOWESS), PyMC (NUTS sampling) and NLopt (SLSQP, COBYLA, ISRES).

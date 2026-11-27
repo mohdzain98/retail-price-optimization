@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 
-from src.config import ElasticityConfig, ModelName
+from src.config import ELASTICITY_DRAWS_PATH, ElasticityConfig, ModelName
 from src.elasticity.base import ELASTICITY_MODELS, SLOPE_COLS, DesignSpec, ElasticityModel
 from src.schema import ESTIMATE_COLS, Col, Family
 from src.utils import AppLogger, DataValidationError
@@ -126,7 +126,7 @@ class BayesianHierarchical(ElasticityModel):
     def save_artifacts(self, directory: Path) -> None:
         """Write posterior elasticity draws (long format) for robustness analysis."""
         directory.mkdir(parents=True, exist_ok=True)
-        self._draws.to_parquet(directory / "elasticity_draws.parquet", index=False)
+        self._draws.to_parquet(directory / ELASTICITY_DRAWS_PATH.name, index=False)
 
     def _control_effect(self, frame: pd.DataFrame) -> pd.Series:
         """Row-wise sum of scaled controls times their category's effects."""
