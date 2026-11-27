@@ -28,10 +28,10 @@ from src.optimization.inputs import InputsBuilder, OptimizationInputs, PackSizeP
 from src.optimization.problem import KpiCalculator, PricingProblem, ProblemBuilder
 from src.optimization.robustness import RobustnessAnalyzer
 from src.optimization.solver import (
-    CONSTRAINT_TOL,
     FeasibilityRepair,
     NloptSolver,
     PricePointRounder,
+    PriceRecommender,
     SolveResult,
 )
 from src.schema import Col, Metric, Scenario, kpi_col
@@ -68,18 +68,9 @@ class OptimizationParts:
     inputs: InputsBuilder
     problems: ProblemBuilder
     solvers: Sequence[NloptSolver]  # first is primary
-    rounder: PricePointRounder
-    repair: FeasibilityRepair
+    recommender: PriceRecommender
     robustness: RobustnessAnalyzer
     rules: DirectionRuleCheck
-
-
-@dataclass(frozen=True)
-class _Recommended:
-    """Rounded relative prices and whether the safeguard reverted them to current."""
-
-    ratios: np.ndarray
-    safeguard_applied: bool
 
 
 class OptimizationService:
@@ -126,7 +117,7 @@ class OptimizationService:
         logger.info("Optimizing", extra={"objective": objective.value})
         problem = self._parts.problems.build(inputs, self._demand, objective)
         results = [solver.solve(problem) for solver in self._parts.solvers]
-        recommended = self._recommended(problem, results[0].ratios)
+        recommended = self._parts.recommender.recommend(problem, results[0].ratios)
         linear = DEMAND_CURVES.get(DemandForm.LINEAR)()
         linear_problem = self._parts.problems.build(inputs, linear, objective)
         ratios = {
@@ -142,22 +133,6 @@ class OptimizationService:
             .merge(robust, on=Col.UPC, how="left")
         )
         return table, self._summary(problem, ratios, results)
-
-    def _recommended(self, problem: PricingProblem, optimal: np.ndarray) -> _Recommended:
-        """Round to price points, repair feasibility, never score below current prices.
-
-        Falls back to current prices (and logs a warning) if rounding loses the gain.
-        """
-        p0, inputs, demand = problem.inputs.p0, problem.inputs, problem.demand
-        lo, hi = (b * p0 for b in problem.bounds)
-        prices = self._parts.repair.repair(problem, self._parts.rounder.round(optimal * p0, lo, hi))
-        ratios = prices / p0
-        value, _ = problem.objective.value_and_grad(ratios, inputs, demand)
-        current, _ = problem.objective.value_and_grad(np.ones(problem.n), inputs, demand)
-        if value < current or problem.max_violation(ratios) > CONSTRAINT_TOL * 10:
-            logger.warning("Rounded prices score below current; keeping current prices")
-            return _Recommended(np.ones(problem.n), safeguard_applied=True)
-        return _Recommended(ratios, safeguard_applied=False)
 
     def _recommendations(
         self, inputs: OptimizationInputs, ratios: dict[Scenario, np.ndarray], safeguard: bool
@@ -245,8 +220,7 @@ class OptimizationFactory:
             inputs=InputsBuilder(opt.reference_weeks, self._cfg.cost, PackSizeParser()),
             problems=problems,
             solvers=solvers,
-            rounder=rounder,
-            repair=FeasibilityRepair(rounder),
+            recommender=PriceRecommender(rounder, FeasibilityRepair(rounder)),
             robustness=RobustnessAnalyzer(problems, solvers[0], opt.robustness_draws, opt.seed),
             rules=DirectionRuleCheck(),
         )

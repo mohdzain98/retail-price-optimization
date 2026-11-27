@@ -1,6 +1,6 @@
 """Residual LOESS trend per series, used as a covariate in the elasticity model.
 
-Mirrors RGMx: log units are first regressed on the demand drivers (price, promo,
+Standard RGM practice: log units are first regressed on the demand drivers (price, promo,
 coverage, holidays, pantry loading, season); LOESS of the residual over time is the
 trend. Fitted on training weeks only and held flat into the holdout (no leakage).
 """

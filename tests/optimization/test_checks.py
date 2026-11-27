@@ -1,6 +1,6 @@
 """Tests for src.optimization.checks.DirectionRuleCheck.
 
-Revenue must reproduce the RGMx rule (elastic -> cut, inelastic -> raise); profit
+Revenue must reproduce the classic revenue rule (elastic -> cut, inelastic -> raise); profit
 uses the margin-aware rule (raise iff |beta| < 1 / margin). Overrides are flagged.
 One test class per production class.
 """
@@ -33,7 +33,7 @@ def _check(cfg: OptimizationConfig, objective: Objective, ratios: np.ndarray) ->
 class TestDirectionRuleCheck:
     """Expected direction follows the objective's own-optimum rule."""
 
-    def test_revenue_is_the_rgmx_rule(self, opt_cfg: OptimizationConfig) -> None:
+    def test_revenue_is_the_classic_rule(self, opt_cfg: OptimizationConfig) -> None:
         """Revenue: inelastic -> raise, elastic -> cut (regardless of margin)."""
         out = _check(opt_cfg, Objective.REVENUE, np.array([1.2, 0.8, 0.8]))
         assert out[Col.EXPECTED_DIRECTION] == [Direction.RAISE, Direction.CUT, Direction.CUT]

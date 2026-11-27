@@ -10,7 +10,7 @@ else
   RUN := env PATH="$(abspath $(VENV))/bin:$$PATH"
 endif
 
-.PHONY: setup install hooks data-check prep elasticity baseline optimize promo loc lint format test check app
+.PHONY: setup install hooks data-check prep elasticity baseline optimize promo user pr-check loc lint format test check app
 
 setup:  ## one-time setup: env, deps, .env, git hooks, data check
 	USE_UV=$(USE_UV) ./scripts/setup.sh
@@ -44,6 +44,12 @@ optimize:  ## Phase 4: NLopt profit-maximising regular prices
 
 promo:  ## Phase 5: baseline forecast + MILP promo calendar and budget frontier
 	$(RUN) python -m src.pipeline promo
+
+user:  ## create a local login for the Streamlit app (prompts for name, email, password)
+	$(RUN) python scripts/create_user.py
+
+pr-check:  ## files this branch adds vs main: no data, secrets or files over 2 MB (same as CI)
+	$(RUN) python scripts/check_pr_files.py --base main
 
 loc:  ## lines of code: Python (gnost) + notebooks + GitHub language share
 	$(RUN) python scripts/loc.py

@@ -1,8 +1,9 @@
 # Methodology
 
-How the pipeline turns weekly retail data into price recommendations, the assumptions behind each step, and where
-each approach comes from. Sections are added as phases land. Implemented so far: data preparation (§1), price elasticity
-(§2), baseline decomposition (§3), price optimization (§4) and forecast with promo budget optimization (§5).
+How the pipeline turns weekly retail data into price and promotion recommendations, the assumptions behind each
+step, and where each approach comes from. Sections: data preparation (§1), price elasticity (§2), baseline
+decomposition (§3), regular-price optimization (§4), forecast with promo budget optimization (§5) and the what-if
+simulator (§6).
 
 ---
 
@@ -37,14 +38,14 @@ all 55 products are eligible.
 | `ln_base_price` | log regular (base) price | **regular-price** level |
 | `ln_promo_price` | ln(price ÷ base price) ≤ 0 | **temporary discount**; `ln_price = ln_base_price + ln_promo_price` |
 | `feature`, `display`, `feature_display`, `tpr` | share of selling stores running each tactic (mutually exclusive in the raw data) | merchandising lift beyond the price cut |
-| `promo_flag` | discount ≥ 5%, or feature/display share ≥ 25% | promo weeks (RGMx-style) |
+| `promo_flag` | discount ≥ 5%, or feature/display share ≥ 25% | promo weeks (the usual RGM definition) |
 | `pl1..pl3` | `promo_flag` lagged 1–3 weeks | **pantry loading**: the post-promotion dip as shoppers use up stock |
 | `ln_n_stores` | log of selling stores | separates coverage changes from price response |
 | Fourier terms | sin/cos of day-of-year, order 3 | smooth yearly seasonality |
 | Holiday flags | week contains a US public holiday; separate flags for Thanksgiving, Christmas and Super Bowl Sunday | demand spikes around events |
 | `ln_trend` | LOESS of the **residual** of a per-product driver regression | slow drift not explained by the drivers |
 
-**Residual trend (RGMx approach).** For each product, `ln_units` is first regressed on all the drivers above (price
+**Residual trend (standard RGM practice).** For each product, `ln_units` is first regressed on all the drivers above (price
 terms, tactics, coverage, holidays, pantry loading, seasonality) using training weeks only. LOESS is then applied to
 the residual over time. The trend therefore captures only drift the drivers cannot explain, such as distribution gains
 or brand growth. It never absorbs price or promotion effects, which a LOESS on raw volume would partly do. The window
@@ -70,16 +71,16 @@ each part gets its own slope:
 - **$\beta_i$: regular-price elasticity.** The response to a lasting change in the shelf price. This is what the price
   optimizer needs. Mixing it with promotional responses would overstate how much volume a regular-price cut wins.
 - **`δ_i`: promo-price elasticity.** The response to a temporary discount. It is usually larger, because shoppers
-  react to deals and buy ahead. Phase 5 promo planning uses this.
+  react to deals and buy ahead. Promo planning (§5) uses this.
 - **`X_it` (controls):** feature, display, feature+display and TPR shares; pantry loading `pl1..pl3`; `ln_n_stores`;
   holidays; Fourier seasonality; the residual trend. With the TPR share in the model, `δ` measures the effect of
-  discount *depth*, and the TPR share captures the lift from being on deal at all. These are the same promo drivers
-  RGMx uses (ACV feature, display, F&D and TPR, plus pantry flags).
+  discount *depth*, and the TPR share captures the lift from being on deal at all. These are the standard RGM promo
+  drivers (ACV feature, display, F&D and TPR, plus pantry flags).
 - **Identification check.** The regular price moves for all 55 products (median range 19%). Regular-price changes
   carry about a quarter of the price variance and correlate only −0.13 with discount depth, so the two slopes are
   separately identifiable.
 
-The constant-elasticity form gives the demand curve $Q(P) = Q_0 (P/P_0)^{\beta}$ that the optimizer uses in Phase 4.
+The constant-elasticity form gives the demand curve $Q(P) = Q_0 (P/P_0)^{\beta}$ that the optimizer uses (§4).
 
 ### 2.2 Four estimators
 
@@ -87,7 +88,7 @@ The constant-elasticity form gives the demand curve $Q(P) = Q_0 (P/P_0)^{\beta}$
 |---|---|---|---|
 | **OLS per product** | separate regression per product | no shared assumptions | noisy where a price term barely moves |
 | **Pooled OLS** | product intercepts, one slope per category and price term | very stable | every product in a category gets the same slopes |
-| **MixedLM** | category fixed slopes + random intercept and slopes per product (REML) | partial pooling (as in RGMx) | approximate intervals |
+| **MixedLM** | category fixed slopes + random intercept and slopes per product (REML) | partial pooling (common in RGM) | approximate intervals |
 | **Bayesian hierarchical** | both slopes follow `global → category → product` | partial pooling plus a full posterior | about 4 minutes to sample |
 
 The Bayesian model:
@@ -103,7 +104,7 @@ The Bayesian model:
 - **Sampling.** NUTS, 4 chains × 1,500 draws, `target_accept` 0.95. Latest run: r-hat 1.008, minimum bulk ESS 774,
   0 divergences.
 
-### 2.3 Model selection and imputation (RGMx post-processing)
+### 2.3 Model selection and imputation (RGM post-processing)
 
 Each model is scored **per product**, and each product uses the first model in the priority list
 (`bayes_hierarchical → mixed_effects → ols_per_product`) that passes every quality gate:
@@ -123,8 +124,8 @@ estimates (and interval bounds) at the most specific level that has one:
 4. all products
 
 The promo family is checked separately against [−8, −0.3] and imputed the same way. Every product carries a source
-(`estimated` / `imputed`) and a reason for each family. RGMx uses the same pattern: quality gates, model priority,
-then hierarchical imputation over brand and retailer levels.
+(`estimated` / `imputed`) and a reason for each family. This is the usual RGM post-processing pattern: quality gates,
+model priority, then hierarchical imputation over brand and retailer levels.
 
 ### 2.4 Validation
 
@@ -162,11 +163,11 @@ Figures: `02_elasticity_forest.png` (regular), `02_promo_elasticity_forest.png`,
 
 - **Price endogeneity.** Retailers set prices partly in response to expected demand. Instruments such as the same
   product's price in other stores would address this. Not done yet.
-- **No cross-price effects.** Competitor price indices (RGMx's `xpi` / `opi`) and substitution between products are not
+- **No cross-price effects.** Competitor price indices (own/cross price indices) and substitution between products are not
   modelled yet.
 - **Aggregation.** The product-week price averages across stores with different prices, which smooths the price
   signal.
-- **In-sample gates.** MAPE and R² are measured on training weeks, as in RGMx. Holdout WAPE is reported separately for
+- **In-sample gates.** MAPE and R² are measured on training weeks, as is common in RGM model reviews. Holdout WAPE is reported separately for
   each model.
 
 ---
@@ -176,10 +177,10 @@ Figures: `02_elasticity_forest.png` (regular), `02_promo_elasticity_forest.png`,
 ### 3.1 Definition
 
 The **baseline** is the volume a product would sell in a week at its regular price, with no temporary discount, no
-feature or display, and no post-promotion dip. Holidays, seasonality and the trend stay in it. Phase 4 optimizes the
+feature or display, and no post-promotion dip. Holidays, seasonality and the trend stay in it. The optimizer (§4) sets the
 regular price on top of this baseline.
 
-### 3.2 Top-down formula (RGMx)
+### 3.2 Top-down formula
 
 The baseline is built **top-down**: the promotional effects are removed from *actual* volume. This keeps it anchored to
 what really sold, unlike a bottom-up model prediction.
@@ -197,10 +198,10 @@ what really sold, unlike a bottom-up model prediction.
 
 - **Contributions are model-agnostic.** Each one is computed as the model's prediction minus its prediction with those
   drivers set to zero. For a linear model this equals Σ coefficient × driver.
-- **Which model:** each product uses its selected model from Phase 2. If none passed the gates, it uses the first model
+- **Which model:** each product uses its selected model from §2. If none passed the gates, it uses the first model
   in priority. Ineligible products (no model) get the price effect only, using their imputed δ.
 
-### 3.3 Bad-baseline rules (RGMx)
+### 3.3 Bad-baseline rules
 
 Week-to-week noise in consecutive promo weeks can make the raw baseline implausible. Each rule flags such weeks and
 names its fix:
@@ -213,9 +214,9 @@ names its fix:
 | 5 · promo spike | promo week, no holiday, baseline above both neighbours | rolling mean |
 | 6 · promo drop | promo week, baseline < 75% of a neighbour | rolling mean |
 
-- **Precedence:** rolling-mean fixes win over actual-volume fixes, as in RGMx.
-- **Edges:** RGMx fills missing neighbours with 0; here a series edge simply has no neighbour, so the neighbour rules
-  cannot fire there.
+- **Precedence:** rolling-mean fixes win over actual-volume fixes.
+- **Edges:** a series edge has no neighbour, so the neighbour rules cannot fire there (rather than treating the
+  missing neighbour as 0).
 - **Float tolerance:** comparisons use a small relative tolerance, so `exp(ln units)` never counts as "above units".
 
 ### 3.4 Due-to decomposition
@@ -246,7 +247,7 @@ Figures: `03_due_to_by_category.png`, `03_baseline_weekly.png`.
 
 ### 3.6 Limitations
 
-- **Promo-week error.** Attributing the positive promo-week residual to promotion (as RGMx does) can overstate
+- **Promo-week error.** Attributing the positive promo-week residual to promotion (common practice) can overstate
   promotional lift when an unrelated shock happens in a promo week.
 - **Promo flag threshold.** A 5% discount marks 33% of product-weeks as promo weeks. A stricter threshold would change
   which weeks the rules can touch.
@@ -257,7 +258,7 @@ Figures: `03_due_to_by_category.png`, `03_baseline_weekly.png`.
 
 ### 4.1 Why not the linear formula
 
-The RGMx notebook and the source article optimise:
+A common first-order RGM formula, also used in the source article, optimises:
 
 ```math
 \Delta V = B \cdot E \cdot \frac{P - \bar P}{\bar P}, \qquad \max_P \; (B + \Delta V)\, P
@@ -283,8 +284,8 @@ Decision variables are relative prices $r_i = P_i / P_{0,i}$, all close to 1, wh
 | Piece | Definition |
 |---|---|
 | Current price `P₀` | median base price over the last 13 weeks |
-| Base volume `B` | mean weekly baseline over the same weeks (Phase 3) |
-| Elasticity $\beta$ | final **regular-price** elasticity (Phase 2) |
+| Base volume `B` | mean weekly baseline over the same weeks (§3) |
+| Elasticity $\beta$ | final **regular-price** elasticity (§2) |
 | Unit cost $c$ | $(1 - m_{\text{category}}) P_0$, using the assumed margins in config (the data has no cost) |
 | Demand | $Q_i = B_i r_i^{\beta_i}$, the constant-elasticity curve implied by the log-log model |
 | Objective | maximise $\sum_i (P_i - c_{\text{eff},i}) Q_i$, where the **effective cost** sets the goal: profit uses $c$, revenue uses zero, and a profit/revenue mix uses $w c$. Both **profit and revenue** are solved in every run and stored side by side |
@@ -301,9 +302,9 @@ Constraints, all written as $f_c(r) \le 0$ with analytic Jacobians and tested fo
 **Correctness check:** for one product with no portfolio constraints, the optimum is the closed form
 $P^* = c\beta/(1+\beta)$ (for $\beta < -1$). A unit test checks that NLopt recovers it.
 
-### 4.3 Pricing-direction rule (RGMx) and the profit version
+### 4.3 Pricing-direction rule and the profit version
 
-RGMx states the classic **revenue** rule: if E < −1, lowering price raises revenue; if E > −1, raising price raises
+The classic **revenue** rule of RGM pricing: if E < −1, lowering price raises revenue; if E > −1, raising price raises
 revenue. Each product's own optimum (no portfolio constraints) is
 
 ```math
@@ -311,7 +312,7 @@ P^* = \begin{cases} \dfrac{c_{\text{eff}}\,\beta}{1+\beta} & \beta < -1 \\[4pt] 
 ```
 
 - **Revenue** ($c_{\text{eff}} = 0$): $P^*$ is the lower bound for elastic products and the upper bound for inelastic ones. This is
-  exactly the RGMx rule.
+  exactly the classic rule.
 - **Profit** ($c_{\text{eff}} = c$): **raise if $|\beta| < 1/\text{margin}$, cut if $|\beta| > 1/\text{margin}$.** With 28–40% margins the cut-off is
   |β| ≈ 2.5–3.6. A mildly elastic product (β = −1.5) should be *raised*, because the volume a cut wins is worth less than
   the margin it gives up.
@@ -363,7 +364,7 @@ Recommended (rounded) prices, baseline business, weekly change vs current:
 | Goal | Volume | Revenue | Profit | Annual profit impact |
 |---|---|---|---|---|
 | **Profit** | −0.2% | +6.2% | **+12.9%** | ≈ +\$305k on ≈ \$2.4M baseline profit |
-| Revenue | +23.4% | **+15.1%** | −18.9% | ≈ −\$446k |
+| Revenue | +23.4% | **+15.1%** | −18.9% | ≈ −\$447k |
 
 **Maximising revenue cuts prices on elastic products.** It buys volume and revenue but gives up a fifth of the profit.
 That is why profit is the default goal. The revenue run is kept so the simulator can show the trade-off.
@@ -388,13 +389,13 @@ Figures (one set per goal): `04_scenarios_{profit,revenue}.png`, `04_price_chang
 ### 4.7 Limitations
 
 - **Assumed margins.** Profit gains scale with the margin assumption (28–40% by category).
-- **Regular-price business only.** Promotions keep their current depth and calendar. Phase 5 plans promotions.
+- **Regular-price business only.** Promotions keep their current depth and calendar; §5 plans promotions.
 - **No cross-price effects or competitor reaction.** Each product's demand depends only on its own price.
 - **Local elasticity.** The elasticity is estimated within the observed price range. Moves near ±20% extrapolate.
 
 ## 5. Forecast and promo budget optimization (MILP)
 
-Phase 4 sets **regular** prices. Phase 5 plans **promotions** for the next 13 weeks on top of them. This is trade
+§4 sets **regular** prices; this step plans **promotions** for the next 13 weeks on top of them. This is trade
 promotion optimization (TPO): which product to promote, in which week, with which tactic and discount depth, and how
 much budget to spend. Every promo option is a yes/no decision, so the problem is a mixed-integer linear program (MILP),
 not a smooth NLopt problem. It is solved with **HiGHS** (open source) through PuLP. No commercial solver (Gurobi, CPLEX)
@@ -403,12 +404,12 @@ is needed at this size.
 ### 5.1 Baseline forecast: four methods, picked by backtest
 
 The planner needs the **baseline** (volume without promotions) for each future week. Promotion lifts are added on top,
-option by option. Four forecasters predict the top-down baseline from Phase 3. They share one interface and are
+option by option. Four forecasters predict the top-down baseline from §3. They share one interface and are
 registered in `FORECASTERS`:
 
 | Method | How it forecasts |
 |---|---|
-| Naive flat | the mean baseline of the last 13 weeks, `B` (Phase 4's base volume) |
+| Naive flat | the mean baseline of the last 13 weeks, `B` (the optimizer's base volume, §4) |
 | **Seasonal index** (structural) | $B \cdot \exp\big(s(w) - \bar s_{\text{last 13 weeks}}\big)$, where $s$ is the Fourier and holiday effect (Thanksgiving, Christmas, Super Bowl, public holidays) in the Bayesian demand model |
 | SARIMAX(0,1,1) | per product, on log baseline: a local level (the ARIMA form of exponential smoothing) plus Fourier and holiday regressors (dynamic harmonic regression) |
 | XGBoost | one global, direct multi-horizon model for all products. Each training row pairs an origin week with a week 1–13 steps ahead; the target is the log ratio of that week's baseline to the 13-week level at the origin. Features: calendar at the target week, Fourier terms at the origin, step and category |
@@ -417,7 +418,7 @@ registered in `FORECASTERS`:
   therefore enters SARIMAX through the Fourier regressors.
 - **Why XGBoost forecasts a ratio, not a level.** Every product shares one model, and trees cannot extrapolate a
   level. The direct design avoids feeding errors back through recursive forecasts.
-- **Shared assumptions.** All methods hold the trend at its recent level. Each forecast is then moved to the Phase 4
+- **Shared assumptions.** All methods hold the trend at its recent level. Each forecast is then moved to the §4
   recommended prices with the regular-price response $(P_{\text{rec}} / P_0)^{\beta}$.
 
 **Backtest.** Every method is trained on the weeks before the 13-week holdout and forecasts the holdout weeks. The
@@ -456,7 +457,7 @@ Depths are 10%, 20% and 30% off the recommended regular price. **BOGO, multi-buy
 so their lift cannot be measured and they are not planned. They could be approximated as an assumed effective
 discount, but that would be an assumption, not an estimate.
 
-For option (i, w, tactic, d), with regular price P, unit cost c, promo elasticity δ (Phase 2) and forecast baseline F:
+For option (i, w, tactic, d), with regular price P, unit cost c, promo elasticity δ (§2) and forecast baseline F:
 
 ```math
 \begin{aligned}
@@ -474,10 +475,10 @@ Q^{\text{promo}} &= F_w \cdot \text{lift} \\
 Weeks past the horizon reuse the last week's forecast in the dip.
 
 - **Goal.** The gain is the incremental profit for the profit goal ($c_{\text{eff}} = c$) and the incremental revenue
-  for the revenue goal ($c_{\text{eff}} = 0$), as in Phase 4.
+  for the revenue goal ($c_{\text{eff}} = 0$), as in §4.
 - **Tactic and pantry effects come from the Bayesian model** for every product. Per-product OLS tactic coefficients
   ranged from −6 to +11 (log scale), which is noise; the hierarchical model shrinks them to plausible values (display
-  ≈ +0.59 at full coverage). As in Phase 3, tactic effects are floored at 0 and pantry effects capped at 0.
+  ≈ +0.59 at full coverage). As in §3, tactic effects are floored at 0 and pantry effects capped at 0.
 - **Execution level.** Each tactic's columns are shares of stores. A planned tactic is assumed to run as widely as it
   historically did. Setting display to 100% of stores would extrapolate and roughly double its lift.
 - **Fixed fees are assumptions** (feature \$500, display \$300, feature + display \$800 per SKU-week); the data has
@@ -551,7 +552,7 @@ calendar.
   problem is a knapsack with many small options. The MILP's value is a proven optimum (gap ≤ 0.1%) and correct
   handling of interacting rules, not a large extra gain here.
 - **The revenue goal** promotes 21 products, including frozen pizza on display, and pays for it in profit, mirroring
-  the Phase 4 trade-off. Given last year's budget, the MILP earns 6.6% more revenue than last year's calendar.
+  the §4 trade-off. Given last year's budget, the MILP earns 6.6% more revenue than last year's calendar.
 
 ### 5.6 Limitations
 
@@ -567,6 +568,27 @@ calendar.
 - **Last-year replay is approximate.** Back-to-back historical promos overlap their pantry dips, which the per-option
   accounting does not model.
 
+## 6. What-if simulator (Streamlit)
+
+`make app` opens a simulator on top of the pipeline outputs, after signing in with a local account created by `make user`. The sidebar switches the goal between profit and
+revenue, and every page follows it. The simulator re-runs the optimizers, not just the stored results:
+
+| Page | Stored or live | What the user can change |
+|---|---|---|
+| Overview | stored | the goal |
+| Price simulator | **live NLopt** (about 0.3 s) | price range, volume floor, average-increase cap, private-label ladder on/off, category margins; or any single price, edited in a table |
+| Promo planner | **live MILP** (under 1 s) | budget, tactics, depths, fixed fees, promos per product, weeks between promos, feature and display slots; the budget frontier on request |
+| Forecast | stored | category filter |
+
+- **Same code as the pipeline.** With the pipeline's settings, the simulator reproduces the stored results exactly:
+  +12.9% profit for the profit goal, and the same MILP plan. Tests check this.
+- **What stays fixed.** Elasticities, baseline volumes, the forecast and each option's lift are the fitted results.
+  The simulator changes decisions and assumptions, not the models.
+- **Edited prices** are scored on the same demand curve. The app lists every guardrail they break (price range,
+  volume floor, average-increase cap, ladders).
+- **Changing a fee** re-prices every option exactly. Spend and profit move by the fee difference, and the gain moves
+  by the fee times the goal's cost weight (1 for profit, 0 for revenue).
+
 ---
 
 ## Sources of the approach
@@ -574,12 +596,13 @@ calendar.
 - **Overall pipeline (elasticity → baseline → NLopt optimization)** follows the pricing workflow described in
   *Mastering the Art of Pricing Optimization*
   ([Towards Data Science](https://medium.com/data-science/mastering-the-art-of-pricing-optimization-a-data-science-solution-eb8befb79425)).
-- **RGM econometrics practice (RGMx)**, from the author's earlier industry work, contributed:
+- **Revenue Growth Management (RGM) econometrics practice**, as widely used in consumer-goods pricing and promotion
+  analytics:
   - the log-volume mixed model with promo-tactic, distribution and pantry-loading drivers;
   - the trend fitted on model residuals;
-  - per-pair quality gates (MAPE, R², elasticity range) with model priority;
+  - per-product quality gates (MAPE, R², elasticity range) with model priority;
   - hierarchical imputation;
-  - the top-down baseline with its effect terms and bad-baseline rules (Phase 3).
+  - the top-down baseline with its effect terms and bad-baseline rules (§3).
 - **Model specification and estimators** are standard econometrics, chosen and implemented for this project:
   - the log-log constant-elasticity demand model, here with a regular/promo price split;
   - fixed and random effects;
@@ -587,7 +610,7 @@ calendar.
     Multilevel/Hierarchical Models* (2007);
   - LOESS smoothing (Cleveland, 1979).
 - **Promo planning** is the standard trade promotion optimization formulation (binary promo choices under budget,
-  frequency, spacing and slot constraints), solved as a MILP with a budget frontier; the pantry-loading spacing rule
-  comes from the RGMx promo model.
+  frequency, spacing and slot constraints), solved as a MILP with a budget frontier; the spacing rule follows the
+  pantry-loading effect estimated in the demand model.
 - **Libraries:** statsmodels (OLS, MixedLM, LOWESS), PyMC (NUTS sampling), NLopt (SLSQP, COBYLA, ISRES), and PuLP with
   HiGHS (MILP), statsmodels SARIMAX and XGBoost (forecast challengers).

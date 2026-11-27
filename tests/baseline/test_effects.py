@@ -34,7 +34,7 @@ def effects(week_panel: pd.DataFrame, final_table: pd.DataFrame) -> pd.DataFrame
 
 
 class TestEffectCalculator:
-    """Effect terms follow the RGMx top-down definitions."""
+    """Effect terms follow the top-down definitions."""
 
     def test_promo_week_terms(self, effects: pd.DataFrame) -> None:
         """Promo week: tactic 0.3, price = final delta x ln(0.8), error = +0.1 residual."""

@@ -6,6 +6,7 @@ from src.utils import AppLogger, Registry, DataValidationError.
 """
 
 from src.utils.exceptions import (
+    AccountError,
     ConfigError,
     DataValidationError,
     MissingFileError,
@@ -16,6 +17,7 @@ from src.utils.logger import AppLogger
 from src.utils.registry import Registry
 
 __all__ = [
+    "AccountError",
     "AppLogger",
     "ConfigError",
     "DataValidationError",

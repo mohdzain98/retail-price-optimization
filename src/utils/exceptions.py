@@ -39,3 +39,10 @@ class SolverError(RPOError):
 
     Example: the MILP hit its time limit before finding any feasible plan.
     """
+
+
+class AccountError(RPOError):
+    """A local simulator account could not be created or used.
+
+    Example: the email is already registered, or the password is too weak.
+    """

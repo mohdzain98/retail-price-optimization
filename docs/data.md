@@ -70,8 +70,8 @@ All files are in `data/processed/`. Column names are defined once, in `src/schem
 
 ### Forecast and promo outputs
 
-Every table except the backtest has an `objective` column (`profit` / `revenue`); each goal uses its own Phase 4
-prices.
+Every table except the backtest has an `objective` column (`profit` / `revenue`); each goal uses its own
+recommended prices (§4 of the methodology).
 
 | File | Content |
 |---|---|
@@ -81,3 +81,9 @@ prices.
 | `promo_plan.parquet` | Chosen options per `scenario` (`last_year_calendar`, `milp_at_last_year_spend`, `greedy_plan`, `milp_plan`) with the `budget` each was solved for |
 | `budget_frontier.parquet` | One row per budget: `trade_spend`, `gain`, `n_promos`, `marginal_return` and the `recommended_budget` flag |
 | `promo_summary.parquet` | Horizon totals per scenario (also current and recommended prices with no promo): volume, revenue, profit (net of fees), trade spend, promos, and % change vs current prices with no promo |
+
+### Local accounts
+
+| File | Content |
+|---|---|
+| `data/users.db` | SQLite file created by `make user` (gitignored): name, email, salted scrypt password hash, per-user app settings (JSON) and creation time. Passwords are never stored in plain text |

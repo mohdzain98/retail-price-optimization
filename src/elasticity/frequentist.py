@@ -2,7 +2,7 @@
 
 Each estimates a regular-price and a promo-price slope. Per-product OLS is
 unbiased but noisy, pooled OLS forces one slope per category, and MixedLM
-partially pools product slopes toward the category (RGMx-style mixed model).
+partially pools product slopes toward the category (the usual RGM mixed model).
 """
 
 from __future__ import annotations

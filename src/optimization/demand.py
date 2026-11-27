@@ -1,8 +1,8 @@
 """Demand curves used inside the optimizer, in relative price r = P / P0.
 
 ConstantElasticity (Q = B r^beta) is consistent with the log-log elasticity model.
-LinearElasticity (Q = B (1 + beta (r - 1))) is the first-order approximation used by
-the RGMx notebook and the article; it is kept to show how far its optimum drifts.
+LinearElasticity (Q = B (1 + beta (r - 1))) is the first-order approximation behind a
+common RGM pricing formula and the source article; it shows how far its optimum drifts.
 """
 
 from __future__ import annotations

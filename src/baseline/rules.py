@@ -1,4 +1,4 @@
-"""RGMx bad-baseline rules and the corrector that applies them.
+"""Bad-baseline rules and the corrector that applies them.
 
 Each rule flags weeks where the raw top-down baseline is implausible and states
 its fix: replace with actual volume, or with a centred rolling mean of the raw
@@ -25,7 +25,7 @@ REL_TOL = 1e-9  # exp(ln(units)) can exceed units by float noise
 
 
 class BaselineRule(ABC):
-    """One RGMx check on the raw baseline; flagged weeks get the rule's fix.
+    """One check on the raw baseline; flagged weeks get the rule's fix.
 
     Rules read a prepared view with neighbour baselines and recent-promo/holiday flags.
     """
@@ -153,7 +153,7 @@ class PromoDrop(BaselineRule):
 class BaselineCorrector:
     """Applies the rules and writes the final baseline and how it was fixed.
 
-    Rolling-mean fixes win over actual-volume fixes (RGMx precedence). Series edges
+    Rolling-mean fixes win over actual-volume fixes (the usual precedence). Series edges
     have no neighbour, so neighbour rules never fire there.
     """
 

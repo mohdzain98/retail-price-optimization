@@ -1,0 +1,1877 @@
+{
+  "schema_version": "1.5",
+  "generator": {
+    "name": "gnost",
+    "version": "0.7.1"
+  },
+  "project": {
+    "name": "Retail_price_optimization",
+    "languages": {
+      "python": 71
+    },
+    "framework": "Streamlit",
+    "files": 71,
+    "parsers": {
+      "python": "ast"
+    }
+  },
+  "entry_points": [
+    {
+      "file": "scripts/check_data.py",
+      "reason": "__main__ guard",
+      "priority": "secondary"
+    },
+    {
+      "file": "scripts/check_pr_files.py",
+      "reason": "__main__ guard",
+      "priority": "secondary"
+    },
+    {
+      "file": "scripts/create_user.py",
+      "reason": "__main__ guard",
+      "priority": "secondary"
+    },
+    {
+      "file": "scripts/loc.py",
+      "reason": "__main__ guard",
+      "priority": "secondary"
+    },
+    {
+      "file": "src/pipeline.py",
+      "reason": "__main__ guard",
+      "priority": "secondary"
+    }
+  ],
+  "routes": [],
+  "change_history": {
+    "available": true,
+    "reason": null,
+    "window_days": 365,
+    "commits_analyzed": 12,
+    "files": [
+      {
+        "path": "src/config.py",
+        "score": 90.0,
+        "commits": 7,
+        "authors": 1,
+        "recent_commits": 7,
+        "lines_added": 448,
+        "lines_removed": 85,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/pipeline.py",
+        "score": 84.8,
+        "commits": 6,
+        "authors": 1,
+        "recent_commits": 6,
+        "lines_added": 202,
+        "lines_removed": 9,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/schema.py",
+        "score": 84.8,
+        "commits": 6,
+        "authors": 1,
+        "recent_commits": 6,
+        "lines_added": 322,
+        "lines_removed": 3,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/plots/__init__.py",
+        "score": 79.6,
+        "commits": 4,
+        "authors": 1,
+        "recent_commits": 4,
+        "lines_added": 30,
+        "lines_removed": 7,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/elasticity/bayes.py",
+        "score": 72.6,
+        "commits": 3,
+        "authors": 1,
+        "recent_commits": 3,
+        "lines_added": 250,
+        "lines_removed": 2,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/utils/__init__.py",
+        "score": 72.6,
+        "commits": 3,
+        "authors": 1,
+        "recent_commits": 3,
+        "lines_added": 30,
+        "lines_removed": 4,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/utils/exceptions.py",
+        "score": 72.6,
+        "commits": 3,
+        "authors": 1,
+        "recent_commits": 3,
+        "lines_added": 42,
+        "lines_removed": 1,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "scripts/check_data.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 91,
+        "lines_removed": 32,
+        "last_changed": "2026-11-26"
+      },
+      {
+        "path": "src/__init__.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 9,
+        "lines_removed": 1,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/elasticity/__init__.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 27,
+        "lines_removed": 2,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/elasticity/base.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 147,
+        "lines_removed": 0,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/elasticity/service.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 183,
+        "lines_removed": 0,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/optimization/__init__.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 21,
+        "lines_removed": 1,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/optimization/problem.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 360,
+        "lines_removed": 42,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/optimization/robustness.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 80,
+        "lines_removed": 4,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/optimization/service.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 313,
+        "lines_removed": 57,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/optimization/solver.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 227,
+        "lines_removed": 1,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/plots/eda.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 167,
+        "lines_removed": 53,
+        "last_changed": "2026-11-26"
+      },
+      {
+        "path": "src/plots/optimization.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 168,
+        "lines_removed": 28,
+        "last_changed": "2026-11-27"
+      },
+      {
+        "path": "src/prep/features.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 298,
+        "lines_removed": 9,
+        "last_changed": "2026-11-26"
+      },
+      {
+        "path": "src/prep/panel.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 230,
+        "lines_removed": 4,
+        "last_changed": "2026-11-26"
+      },
+      {
+        "path": "src/prep/service.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 101,
+        "lines_removed": 2,
+        "last_changed": "2026-11-26"
+      },
+      {
+        "path": "src/prep/trend.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 79,
+        "lines_removed": 11,
+        "last_changed": "2026-11-26"
+      },
+      {
+        "path": "src/utils/registry.py",
+        "score": 37.8,
+        "commits": 2,
+        "authors": 1,
+        "recent_commits": 2,
+        "lines_added": 58,
+        "lines_removed": 5,
+        "last_changed": "2026-11-27"
+      }
+    ]
+  },
+  "risk": {
+    "threshold": 20.0,
+    "files": [
+      {
+        "path": "src/config.py",
+        "risk": 73.2,
+        "structural_score": 81.3,
+        "change_score": 90.0,
+        "commits": 7,
+        "authors": 1,
+        "recent_commits": 7,
+        "reasons": [
+          "impact",
+          "size"
+        ]
+      },
+      {
+        "path": "src/schema.py",
+        "risk": 68.7,
+        "structural_score": 81.0,
+        "change_score": 84.8,
+        "commits": 6,
+        "authors": 1,
+        "recent_commits": 6,
+        "reasons": [
+          "impact",
+          "size"
+        ]
+      },
+      {
+        "path": "src/utils/__init__.py",
+        "risk": 58.1,
+        "structural_score": 80.0,
+        "change_score": 72.6,
+        "commits": 3,
+        "authors": 1,
+        "recent_commits": 3,
+        "reasons": [
+          "impact"
+        ]
+      }
+    ]
+  },
+  "quickstart": {
+    "prerequisites": [
+      {
+        "text": "Python >=3.12,<3.13",
+        "source": "pyproject.toml",
+        "command": false
+      }
+    ],
+    "install": [
+      {
+        "text": "uv sync",
+        "source": "pyproject.toml",
+        "command": true
+      },
+      {
+        "text": "make setup",
+        "source": "Makefile",
+        "command": true
+      },
+      {
+        "text": "make install",
+        "source": "Makefile",
+        "command": true
+      }
+    ],
+    "build": [],
+    "run": [],
+    "test": [
+      {
+        "text": "pytest",
+        "source": "pyproject.toml",
+        "command": true
+      },
+      {
+        "text": "make test",
+        "source": "Makefile",
+        "command": true
+      },
+      {
+        "text": "make check",
+        "source": "Makefile",
+        "command": true
+      }
+    ],
+    "environment": [
+      {
+        "text": "RPO_DEBUG",
+        "source": ".env.example",
+        "command": false
+      },
+      {
+        "text": "RPO_PRINT_ENABLED",
+        "source": ".env.example",
+        "command": false
+      }
+    ]
+  },
+  "architecture": {
+    "configured": false,
+    "rules": 0,
+    "edges_checked": 0,
+    "fail": false,
+    "violations": []
+  },
+  "flows": [],
+  "callgraph": {
+    "functions": 535,
+    "edges": 251,
+    "unparsed_files": []
+  },
+  "layers": {
+    "entry": [
+      "scripts/check_data.py",
+      "scripts/check_pr_files.py",
+      "scripts/create_user.py",
+      "scripts/loc.py",
+      "src/pipeline.py"
+    ],
+    "core": [
+      "src/baseline/__init__.py",
+      "src/baseline/decomposition.py",
+      "src/baseline/effects.py",
+      "src/baseline/rules.py",
+      "src/baseline/service.py",
+      "src/config.py",
+      "src/elasticity/__init__.py",
+      "src/elasticity/base.py",
+      "src/elasticity/bayes.py",
+      "src/elasticity/frequentist.py",
+      "src/elasticity/guardrails.py",
+      "src/elasticity/service.py",
+      "src/elasticity/store.py",
+      "src/optimization/__init__.py",
+      "src/optimization/checks.py",
+      "src/optimization/demand.py",
+      "src/optimization/inputs.py",
+      "src/optimization/problem.py",
+      "src/optimization/robustness.py",
+      "src/optimization/service.py",
+      "src/optimization/solver.py",
+      "src/prep/__init__.py",
+      "src/prep/features.py",
+      "src/prep/loader.py",
+      "src/prep/panel.py",
+      "src/prep/service.py",
+      "src/prep/trend.py",
+      "src/promo/__init__.py",
+      "src/promo/candidates.py",
+      "src/promo/forecast.py",
+      "src/promo/forecasters.py",
+      "src/promo/frontier.py",
+      "src/promo/kpis.py",
+      "src/promo/planner.py",
+      "src/promo/service.py",
+      "src/simulator/accounts.py",
+      "src/utils/__init__.py",
+      "src/utils/registry.py"
+    ],
+    "leaf": [
+      "scripts/check_pr_files.py",
+      "scripts/loc.py",
+      "src/schema.py",
+      "src/utils/exceptions.py",
+      "src/utils/logger.py"
+    ]
+  },
+  "first_files": [
+    {
+      "path": "src/pipeline.py",
+      "reason": "Primary entry point into the application",
+      "score": 92.5
+    },
+    {
+      "path": "scripts/check_data.py",
+      "reason": "Primary entry point into the application",
+      "score": 30.5
+    },
+    {
+      "path": "scripts/create_user.py",
+      "reason": "Primary entry point into the application",
+      "score": 18.0
+    },
+    {
+      "path": "src/prep/__init__.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 17.0
+    },
+    {
+      "path": "src/utils/__init__.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 15.5
+    },
+    {
+      "path": "src/elasticity/__init__.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 12.5
+    },
+    {
+      "path": "src/optimization/__init__.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 12.5
+    },
+    {
+      "path": "src/promo/__init__.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 12.5
+    },
+    {
+      "path": "src/promo/service.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 11.5
+    },
+    {
+      "path": "src/optimization/service.py",
+      "reason": "Core logic file referenced by multiple execution paths",
+      "score": 10.5
+    }
+  ],
+  "hotspots": [
+    {
+      "file": "src/schema.py",
+      "score": 129.0,
+      "fan_in": 41,
+      "fan_out": 0,
+      "depth": 2,
+      "layer": "leaf"
+    },
+    {
+      "file": "src/config.py",
+      "score": 124.5,
+      "fan_in": 35,
+      "fan_out": 2,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/utils/__init__.py",
+      "score": 119.5,
+      "fan_in": 32,
+      "fan_out": 3,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/elasticity/__init__.py",
+      "score": 37.5,
+      "fan_in": 6,
+      "fan_out": 5,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/prep/__init__.py",
+      "score": 31.5,
+      "fan_in": 2,
+      "fan_out": 2,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/elasticity/base.py",
+      "score": 29.0,
+      "fan_in": 6,
+      "fan_out": 3,
+      "depth": 2,
+      "layer": "core"
+    },
+    {
+      "file": "src/optimization/problem.py",
+      "score": 25.5,
+      "fan_in": 5,
+      "fan_out": 5,
+      "depth": 3,
+      "layer": "core"
+    },
+    {
+      "file": "src/optimization/__init__.py",
+      "score": 24.5,
+      "fan_in": 1,
+      "fan_out": 1,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/promo/__init__.py",
+      "score": 24.5,
+      "fan_in": 1,
+      "fan_out": 1,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/optimization/service.py",
+      "score": 24.0,
+      "fan_in": 1,
+      "fan_out": 9,
+      "depth": 2,
+      "layer": "core"
+    },
+    {
+      "file": "src/plots/style.py",
+      "score": 24.0,
+      "fan_in": 8,
+      "fan_out": 0,
+      "depth": 0,
+      "layer": "unknown"
+    },
+    {
+      "file": "src/prep/service.py",
+      "score": 24.0,
+      "fan_in": 1,
+      "fan_out": 7,
+      "depth": 2,
+      "layer": "core"
+    },
+    {
+      "file": "src/promo/service.py",
+      "score": 24.0,
+      "fan_in": 1,
+      "fan_out": 11,
+      "depth": 2,
+      "layer": "core"
+    },
+    {
+      "file": "src/optimization/demand.py",
+      "score": 22.5,
+      "fan_in": 4,
+      "fan_out": 2,
+      "depth": 3,
+      "layer": "core"
+    },
+    {
+      "file": "src/optimization/inputs.py",
+      "score": 22.5,
+      "fan_in": 4,
+      "fan_out": 3,
+      "depth": 3,
+      "layer": "core"
+    },
+    {
+      "file": "src/prep/loader.py",
+      "score": 22.0,
+      "fan_in": 3,
+      "fan_out": 3,
+      "depth": 2,
+      "layer": "core"
+    },
+    {
+      "file": "src/prep/features.py",
+      "score": 21.5,
+      "fan_in": 3,
+      "fan_out": 3,
+      "depth": 3,
+      "layer": "core"
+    },
+    {
+      "file": "src/simulator/accounts.py",
+      "score": 20.5,
+      "fan_in": 3,
+      "fan_out": 2,
+      "depth": 1,
+      "layer": "core"
+    },
+    {
+      "file": "src/optimization/solver.py",
+      "score": 19.5,
+      "fan_in": 3,
+      "fan_out": 3,
+      "depth": 3,
+      "layer": "core"
+    },
+    {
+      "file": "src/promo/planner.py",
+      "score": 19.5,
+      "fan_in": 3,
+      "fan_out": 3,
+      "depth": 3,
+      "layer": "core"
+    }
+  ],
+  "caution_areas": [
+    {
+      "path": "src/config.py",
+      "category": "high_impact",
+      "severity": 5,
+      "description": "Imported by 35 files; 273 lines of code",
+      "metrics": {
+        "impact": 35,
+        "size": 273
+      },
+      "score": 81.3,
+      "partial": false,
+      "factors": [
+        {
+          "name": "impact",
+          "value": 35,
+          "contribution": 0.8,
+          "estimated": false
+        },
+        {
+          "name": "size",
+          "value": 273,
+          "contribution": 0.064,
+          "estimated": false
+        }
+      ]
+    },
+    {
+      "path": "src/schema.py",
+      "category": "high_impact",
+      "severity": 5,
+      "description": "Imported by 41 files; 256 lines of code",
+      "metrics": {
+        "impact": 41,
+        "size": 256
+      },
+      "score": 81.0,
+      "partial": false,
+      "factors": [
+        {
+          "name": "impact",
+          "value": 41,
+          "contribution": 0.8,
+          "estimated": false
+        },
+        {
+          "name": "size",
+          "value": 256,
+          "contribution": 0.049,
+          "estimated": false
+        }
+      ]
+    },
+    {
+      "path": "src/utils/__init__.py",
+      "category": "high_impact",
+      "severity": 4,
+      "description": "Imported by 32 files",
+      "metrics": {
+        "impact": 32
+      },
+      "score": 80.0,
+      "partial": false,
+      "factors": [
+        {
+          "name": "impact",
+          "value": 32,
+          "contribution": 0.8,
+          "estimated": false
+        }
+      ]
+    }
+  ],
+  "cycles": [],
+  "graph": {
+    "nodes": [
+      "app/app_pages/forecast.py",
+      "app/app_pages/glossary.py",
+      "app/app_pages/login.py",
+      "app/app_pages/overview.py",
+      "app/app_pages/prices.py",
+      "app/app_pages/promos.py",
+      "app/landing.py",
+      "app/shared.py",
+      "app/shell.py",
+      "app/streamlit_app.py",
+      "scripts/__init__.py",
+      "scripts/check_data.py",
+      "scripts/check_pr_files.py",
+      "scripts/create_user.py",
+      "scripts/loc.py",
+      "src/__init__.py",
+      "src/baseline/__init__.py",
+      "src/baseline/decomposition.py",
+      "src/baseline/effects.py",
+      "src/baseline/rules.py",
+      "src/baseline/service.py",
+      "src/config.py",
+      "src/elasticity/__init__.py",
+      "src/elasticity/base.py",
+      "src/elasticity/bayes.py",
+      "src/elasticity/frequentist.py",
+      "src/elasticity/guardrails.py",
+      "src/elasticity/service.py",
+      "src/elasticity/store.py",
+      "src/optimization/__init__.py",
+      "src/optimization/checks.py",
+      "src/optimization/demand.py",
+      "src/optimization/inputs.py",
+      "src/optimization/problem.py",
+      "src/optimization/robustness.py",
+      "src/optimization/service.py",
+      "src/optimization/solver.py",
+      "src/pipeline.py",
+      "src/plots/__init__.py",
+      "src/plots/baseline.py",
+      "src/plots/eda.py",
+      "src/plots/elasticity.py",
+      "src/plots/optimization.py",
+      "src/plots/promo.py",
+      "src/plots/style.py",
+      "src/prep/__init__.py",
+      "src/prep/features.py",
+      "src/prep/loader.py",
+      "src/prep/panel.py",
+      "src/prep/service.py",
+      "src/prep/trend.py",
+      "src/promo/__init__.py",
+      "src/promo/candidates.py",
+      "src/promo/forecast.py",
+      "src/promo/forecasters.py",
+      "src/promo/frontier.py",
+      "src/promo/kpis.py",
+      "src/promo/planner.py",
+      "src/promo/service.py",
+      "src/schema.py",
+      "src/simulator/__init__.py",
+      "src/simulator/accounts.py",
+      "src/simulator/charts.py",
+      "src/simulator/data.py",
+      "src/simulator/docs.py",
+      "src/simulator/pricing.py",
+      "src/simulator/promo.py",
+      "src/utils/__init__.py",
+      "src/utils/exceptions.py",
+      "src/utils/logger.py",
+      "src/utils/registry.py"
+    ],
+    "edges": [
+      {
+        "source": "app/app_pages/forecast.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/glossary.py",
+        "target": "src/simulator/docs.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/overview.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/overview.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/prices.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/prices.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/prices.py",
+        "target": "src/simulator/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/promos.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/promos.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/promos.py",
+        "target": "src/simulator/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/promos.py",
+        "target": "src/simulator/charts.py",
+        "deferred": false
+      },
+      {
+        "source": "app/app_pages/promos.py",
+        "target": "src/simulator/promo.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shared.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shared.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shared.py",
+        "target": "src/simulator/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shared.py",
+        "target": "src/simulator/accounts.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shell.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shell.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shell.py",
+        "target": "src/simulator/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "app/shell.py",
+        "target": "src/simulator/accounts.py",
+        "deferred": false
+      },
+      {
+        "source": "app/streamlit_app.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "scripts/check_data.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "scripts/check_data.py",
+        "target": "src/prep/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "scripts/check_data.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "scripts/create_user.py",
+        "target": "src/simulator/accounts.py",
+        "deferred": false
+      },
+      {
+        "source": "scripts/create_user.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/__init__.py",
+        "target": "src/baseline/service.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/decomposition.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/effects.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/effects.py",
+        "target": "src/elasticity/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/effects.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/effects.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/rules.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/rules.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/rules.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/baseline/decomposition.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/baseline/effects.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/baseline/rules.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/elasticity/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/baseline/service.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/config.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/config.py",
+        "target": "src/utils/exceptions.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/__init__.py",
+        "target": "src/elasticity/base.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/__init__.py",
+        "target": "src/elasticity/bayes.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/__init__.py",
+        "target": "src/elasticity/frequentist.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/__init__.py",
+        "target": "src/elasticity/service.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/__init__.py",
+        "target": "src/elasticity/store.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/base.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/base.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/base.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/bayes.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/bayes.py",
+        "target": "src/elasticity/base.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/bayes.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/bayes.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/frequentist.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/frequentist.py",
+        "target": "src/elasticity/base.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/frequentist.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/frequentist.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/guardrails.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/guardrails.py",
+        "target": "src/elasticity/base.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/guardrails.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/guardrails.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/service.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/service.py",
+        "target": "src/elasticity/base.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/service.py",
+        "target": "src/elasticity/guardrails.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/service.py",
+        "target": "src/elasticity/store.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/service.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/service.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/store.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/store.py",
+        "target": "src/elasticity/base.py",
+        "deferred": false
+      },
+      {
+        "source": "src/elasticity/store.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/__init__.py",
+        "target": "src/optimization/service.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/checks.py",
+        "target": "src/optimization/problem.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/checks.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/demand.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/demand.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/inputs.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/inputs.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/inputs.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/problem.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/problem.py",
+        "target": "src/optimization/demand.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/problem.py",
+        "target": "src/optimization/inputs.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/problem.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/problem.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/optimization/demand.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/optimization/inputs.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/optimization/problem.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/optimization/solver.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/robustness.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/optimization/checks.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/optimization/demand.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/optimization/inputs.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/optimization/problem.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/optimization/robustness.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/optimization/solver.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/service.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/solver.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/solver.py",
+        "target": "src/optimization/problem.py",
+        "deferred": false
+      },
+      {
+        "source": "src/optimization/solver.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/baseline/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/elasticity/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/optimization/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/prep/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/promo/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/pipeline.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/__init__.py",
+        "target": "src/plots/baseline.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/__init__.py",
+        "target": "src/plots/eda.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/__init__.py",
+        "target": "src/plots/elasticity.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/__init__.py",
+        "target": "src/plots/optimization.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/__init__.py",
+        "target": "src/plots/promo.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/__init__.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/baseline.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/baseline.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/eda.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/eda.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/elasticity.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/elasticity.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/elasticity.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/optimization.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/optimization.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/promo.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/plots/promo.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/__init__.py",
+        "target": "src/prep/loader.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/__init__.py",
+        "target": "src/prep/service.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/features.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/features.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/features.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/loader.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/loader.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/loader.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/panel.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/panel.py",
+        "target": "src/prep/loader.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/panel.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/panel.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/prep/features.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/prep/loader.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/prep/panel.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/prep/trend.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/service.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/trend.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/prep/trend.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/__init__.py",
+        "target": "src/promo/service.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/candidates.py",
+        "target": "src/elasticity/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/candidates.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecast.py",
+        "target": "src/prep/features.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecast.py",
+        "target": "src/promo/forecasters.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecast.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecast.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecasters.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecasters.py",
+        "target": "src/elasticity/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecasters.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/forecasters.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/frontier.py",
+        "target": "src/promo/planner.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/frontier.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/frontier.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/kpis.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/planner.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/planner.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/planner.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/elasticity/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/prep/features.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/promo/candidates.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/promo/forecast.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/promo/forecasters.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/promo/frontier.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/promo/kpis.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/promo/planner.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/promo/service.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/__init__.py",
+        "target": "src/simulator/charts.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/__init__.py",
+        "target": "src/simulator/data.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/__init__.py",
+        "target": "src/simulator/pricing.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/__init__.py",
+        "target": "src/simulator/promo.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/accounts.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/accounts.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/charts.py",
+        "target": "src/plots/style.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/charts.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/data.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/data.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/data.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/docs.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/docs.py",
+        "target": "src/utils/__init__.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/pricing.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/pricing.py",
+        "target": "src/optimization/demand.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/pricing.py",
+        "target": "src/optimization/inputs.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/pricing.py",
+        "target": "src/optimization/problem.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/pricing.py",
+        "target": "src/optimization/solver.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/pricing.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/promo.py",
+        "target": "src/config.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/promo.py",
+        "target": "src/promo/frontier.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/promo.py",
+        "target": "src/promo/kpis.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/promo.py",
+        "target": "src/promo/planner.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/promo.py",
+        "target": "src/schema.py",
+        "deferred": false
+      },
+      {
+        "source": "src/simulator/promo.py",
+        "target": "src/simulator/data.py",
+        "deferred": false
+      },
+      {
+        "source": "src/utils/__init__.py",
+        "target": "src/utils/exceptions.py",
+        "deferred": false
+      },
+      {
+        "source": "src/utils/__init__.py",
+        "target": "src/utils/logger.py",
+        "deferred": false
+      },
+      {
+        "source": "src/utils/__init__.py",
+        "target": "src/utils/registry.py",
+        "deferred": false
+      },
+      {
+        "source": "src/utils/registry.py",
+        "target": "src/utils/exceptions.py",
+        "deferred": false
+      }
+    ]
+  },
+  "stats": {
+    "files": 71,
+    "entry_points": 5,
+    "routes": 0,
+    "reachable_files": 46,
+    "edges": 208,
+    "cycles_import_time": 0,
+    "cycles_deferred": 0
+  }
+}
