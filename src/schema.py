@@ -67,6 +67,14 @@ class Col(StrEnum):
     R2 = "train_r2"
     PASSES_GATES = "passes_gates"
     SHARE_PASSING = "share_passing_gates"
+    BASELINE_MODEL = "baseline_model"
+    LN_PRED = "ln_pred"
+    BASE_RAW = "base_raw"
+    BASELINE = "baseline_units"
+    BASELINE_FIX = "baseline_fix"
+    INCREMENTAL = "incremental_units"
+    BASELINE_SHARE = "baseline_share"
+    PROMO_WEEK_LIFT = "promo_week_lift"
     MODEL = "model"
     ELASTICITY_SOURCE = "elasticity_source"
     IMPUTE_REASON = "impute_reason"
@@ -117,6 +125,23 @@ class Family(StrEnum):
     PROMO = "promo"
 
 
+class EffectTerm(StrEnum):
+    """Top-down baseline effect terms (RGMx): removed from actual log volume."""
+
+    PRICE = "price"
+    PROMO = "promo"
+    PANTRY = "pantry"
+    ERROR = "error"
+
+
+class BaselineFix(StrEnum):
+    """How a week's baseline was finalised (bad-baseline correction)."""
+
+    NONE = "raw"
+    ACTUAL = "actual_volume"
+    ROLLING = "rolling_mean"
+
+
 class Tactic(StrEnum):
     """Promo tactics present in the dataset; values match their panel columns."""
 
@@ -143,6 +168,8 @@ SOURCE_COLS: dict[Family, tuple[Col, Col]] = {
     Family.PROMO: (Col.PROMO_SOURCE, Col.PROMO_IMPUTE_REASON),
 }
 ALL_ESTIMATE_COLS: tuple[Col, ...] = tuple(c for cols in ESTIMATE_COLS.values() for c in cols)
+EFFECT_COLS: dict[EffectTerm, str] = {t: f"{t.value}_effect" for t in EffectTerm}
+LIFT_COLS: dict[EffectTerm, str] = {t: f"{t.value}_lift" for t in EffectTerm}
 _FOURIER_TEMPLATES = ("sin_{k}", "cos_{k}")
 _PANTRY_TEMPLATE = "pl{i}"
 

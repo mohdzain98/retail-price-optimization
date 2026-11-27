@@ -14,7 +14,12 @@ data/processed/panel.parquet            product × week panel with features, spl
    ▼
 data/processed/elasticities.parquet     final guard-railed elasticity per product
                elasticities_all_models.parquet, model_comparison.parquet, elasticity_draws.parquet
-   │  (Phase 3+) baseline → optimization → planning
+               elasticity_models.pkl                (fitted models for the next stage)
+   │  make baseline    (src.baseline → BaselineService)
+   ▼
+data/processed/baseline.parquet         weekly baseline, effect terms, rule flags, due-to lifts
+               baseline_summary.parquet
+   │  (Phase 4+) optimization → planning
    ▼
 reports/figures/*.png                   charts rendered by src.plots (via the notebooks)
 ```
@@ -33,7 +38,8 @@ src/
   prep/            loader.py · panel.py · features.py · trend.py · service.py
   elasticity/      base.py · frequentist.py · bayes.py · guardrails.py (QualityGates, ModelSelector,
                    HierarchicalImputer) · service.py
-  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py
+  baseline/        effects.py · rules.py · decomposition.py · service.py
+  plots/           style.py (PlotStyle, FigureStore) · eda.py · elasticity.py · baseline.py
 notebooks/         thin presentation notebooks (no logic)
 tests/             mirrors src/ (one test class per production class)
 ```
@@ -48,10 +54,12 @@ Each layer exposes one facade, built by a factory (the composition root):
 |---|---|---|---|
 | `src.prep` | `DataPrepService.run()` | `DataPrepFactory(cfg, loader_settings, output_path)` | `PrepStage` |
 | `src.elasticity` | `ElasticityService.run(panel)` | `ElasticityFactory(cfg, outputs)` | `ElasticityStage` |
+| `src.baseline` | `BaselineService.run(panel, final)` | `BaselineFactory(cfg, models, outputs)` | `BaselineStage` |
 
 Dependencies are injected through `__init__`. Only factories and pipeline stages construct objects, which is why
 tests can swap in temporary paths and small synthetic data. Lower layers never import higher ones: prep knows
-nothing about elasticity, and neither imports the pipeline.
+nothing about elasticity, baseline uses elasticity only through its facade
+(`ElasticityModel`, `ModelStore`), and none of them imports the pipeline.
 
 ## Extension points (Open/Closed)
 
@@ -63,6 +71,7 @@ New behaviour is added by registering a class, not by editing an `if/elif` chain
 | `PRODUCT_FILTERS` (`prep/panel.py`) | `ProductFilter` | `FilterReason` | eligibility rule |
 | `FEATURE_STEPS` (`prep/features.py`) | `FeatureStep` | name | engineered feature |
 | `ELASTICITY_MODELS` (`elasticity/base.py`) | `ElasticityModel` | `ModelName` | elasticity model |
+| `BASELINE_RULES` (`baseline/rules.py`) | `BaselineRule` | name | bad-baseline rule (with its fix) |
 | `STAGES` (`pipeline.py`) | `Stage` | `StageName` | pipeline stage |
 
 For example, to add an elasticity model:

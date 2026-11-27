@@ -20,7 +20,11 @@ from tests.elasticity.conftest import SyntheticPanel
 def _outputs(tmp_path: Path) -> ElasticityOutputs:
     """Output paths under tmp_path."""
     return ElasticityOutputs(
-        tmp_path / "final.parquet", tmp_path / "all.parquet", tmp_path / "cmp.parquet", tmp_path
+        tmp_path / "final.parquet",
+        tmp_path / "all.parquet",
+        tmp_path / "cmp.parquet",
+        tmp_path,
+        tmp_path / "models.pkl",
     )
 
 

@@ -24,6 +24,9 @@ PANEL_PATH = DATA_PROCESSED / "panel.parquet"
 ELASTICITY_PATH = DATA_PROCESSED / "elasticities.parquet"
 ELASTICITY_ALL_MODELS_PATH = DATA_PROCESSED / "elasticities_all_models.parquet"
 MODEL_COMPARISON_PATH = DATA_PROCESSED / "model_comparison.parquet"
+ELASTICITY_MODELS_PATH = DATA_PROCESSED / "elasticity_models.pkl"
+BASELINE_PATH = DATA_PROCESSED / "baseline.parquet"
+BASELINE_SUMMARY_PATH = DATA_PROCESSED / "baseline_summary.parquet"
 FIGURES = ROOT / "reports" / "figures"
 
 
@@ -231,6 +234,18 @@ class OptimizationConfig(_Frozen):
         return self
 
 
+class BaselineConfig(_Frozen):
+    """Top-down baseline and RGMx bad-baseline correction settings.
+
+    Rules flag weeks where the raw baseline is implausible; see src/baseline/rules.py.
+    """
+
+    rolling_window: int
+    max_base_to_volume: float
+    neighbor_drop_ratio: float
+    promo_lookback_weeks: int
+
+
 class ForecastConfig(_Frozen):
     """Forecast horizon in weeks from the last observed week."""
 
@@ -264,6 +279,7 @@ class Config(_Frozen):
     elasticity: ElasticityConfig
     cost: CostConfig
     optimization: OptimizationConfig
+    baseline: BaselineConfig
     forecast: ForecastConfig
     promo: PromoConfig
 

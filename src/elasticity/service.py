@@ -17,6 +17,7 @@ import pandas as pd
 
 from src.config import (
     ELASTICITY_ALL_MODELS_PATH,
+    ELASTICITY_MODELS_PATH,
     ELASTICITY_PATH,
     MODEL_COMPARISON_PATH,
     Config,
@@ -29,6 +30,7 @@ from src.elasticity.guardrails import (
     ModelSelector,
     QualityGates,
 )
+from src.elasticity.store import ModelStore
 from src.schema import Col, Family, Split
 from src.utils import AppLogger
 
@@ -43,6 +45,7 @@ class ElasticityOutputs:
     all_models: Path
     comparison: Path
     artifacts_dir: Path
+    models: Path
 
     @classmethod
     def default(cls) -> ElasticityOutputs:
@@ -52,6 +55,7 @@ class ElasticityOutputs:
             ELASTICITY_ALL_MODELS_PATH,
             MODEL_COMPARISON_PATH,
             ELASTICITY_PATH.parent,
+            ELASTICITY_MODELS_PATH,
         )
 
 
@@ -104,6 +108,7 @@ class ElasticityService:
         final = self._post.imputer.apply(self._post.selector.select(scored), products)
         report = ElasticityReport(final, self._long(scored, products), pd.DataFrame(rows))
         self._write(report)
+        ModelStore(self._outputs.models).save({m.name: m for m in self._models})
         return report
 
     def _fit_and_score(
