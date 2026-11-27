@@ -106,6 +106,36 @@ class Col(StrEnum):
     FIT_SECONDS = "fit_seconds"
     MEDIAN_ELASTICITY = "median_elasticity"
     SHARE_IN_BOUNDS = "share_in_bounds"
+    HORIZON_WEEK = "horizon_week"
+    SEASONAL_INDEX = "seasonal_index"
+    REGULAR_PRICE = "regular_price"
+    FORECAST_CURRENT = "forecast_baseline_current_prices"
+    FORECAST_BASELINE = "forecast_baseline_units"
+    TACTIC = "tactic"
+    PROMO_PRICE = "promo_price"
+    LIFT = "lift"
+    PROMO_UNITS = "promo_units"
+    DIP_UNITS = "pantry_dip_units"
+    INCREMENTAL_REVENUE = "incremental_revenue"
+    INCREMENTAL_PROFIT = "incremental_profit"
+    FIXED_COST = "fixed_cost"
+    TRADE_SPEND = "trade_spend"
+    GAIN = "gain"
+    ROI = "roi"
+    SELECTED = "selected"
+    PLANNER = "planner"
+    BUDGET = "budget"
+    N_PROMOS = "n_promos"
+    MARGINAL_RETURN = "marginal_return"
+    RECOMMENDED_BUDGET = "recommended_budget"
+    METHOD = "method"
+    N_ROWS = "n_rows"
+    BIAS = "holdout_bias"
+    FORECAST_METHOD = "forecast_method"
+    PLAN_UNITS = "plan_units"
+    VOLUME = "volume"
+    REVENUE = "revenue"
+    PROFIT = "profit"
 
 
 class Split(StrEnum):
@@ -206,10 +236,44 @@ class Tactic(StrEnum):
     FEATURE_DISPLAY = "feature_display"
 
 
+class Planner(StrEnum):
+    """Promo calendar planners: exact MILP and the greedy ROI-ranking benchmark."""
+
+    MILP = "milp"
+    GREEDY = "greedy"
+
+
+class PromoScenario(StrEnum):
+    """Horizon scenarios of the promo stage; every plan uses the recommended prices."""
+
+    CURRENT_NO_PROMO = "current_prices_no_promo"
+    RECOMMENDED_NO_PROMO = "recommended_prices_no_promo"
+    LAST_YEAR_PLAN = "last_year_calendar"  # business as usual
+    MILP_SAME_SPEND = "milp_at_last_year_spend"
+    GREEDY_PLAN = "greedy_plan"
+    MILP_PLAN = "milp_plan"
+
+
+class ForecastMethod(StrEnum):
+    """Baseline forecast methods compared in the backtest."""
+
+    NAIVE = "naive_flat"
+    SEASONAL = "seasonal_index"
+    SARIMAX = "sarimax"
+    XGBOOST = "xgboost"
+
+
 PROMO_COLS: tuple[Col, ...] = (Col.FEATURE, Col.DISPLAY, Col.TPR)
 TACTIC_COLS: tuple[Col, ...] = (Col.FEATURE, Col.DISPLAY, Col.FEATURE_DISPLAY, Col.TPR)
 SUM_COLS: tuple[Col, ...] = (Col.UNITS, Col.SPEND, Col.VISITS, Col.HHS)
 HOLIDAY_COLS: tuple[Col, ...] = (Col.HOLIDAY_WEEK, Col.SUPER_BOWL, Col.THANKSGIVING, Col.CHRISTMAS)
+# Panel columns switched on (set to 1) by each tactic; feature+display also has its own term.
+TACTIC_TERMS: dict[Tactic, tuple[Col, ...]] = {
+    Tactic.TPR: (Col.TPR,),
+    Tactic.FEATURE: (Col.FEATURE,),
+    Tactic.DISPLAY: (Col.DISPLAY,),
+    Tactic.FEATURE_DISPLAY: (Col.FEATURE, Col.DISPLAY, Col.FEATURE_DISPLAY),
+}
 PRICE_TERMS: dict[Family, Col] = {
     Family.REGULAR: Col.LN_BASE_PRICE,
     Family.PROMO: Col.LN_PROMO_PRICE,

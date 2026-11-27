@@ -11,7 +11,9 @@ statsmodels
 pymc
 arviz
 nlopt
-pulp
+pulp>=4.3
+highspy
+xgboost
 holidays
 matplotlib
 plotly

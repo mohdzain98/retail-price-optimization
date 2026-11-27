@@ -32,3 +32,10 @@ class DataValidationError(RPOError):
 
     Example: a mapped column or sheet is missing from the raw workbook.
     """
+
+
+class SolverError(RPOError):
+    """An optimization solver returned no usable solution.
+
+    Example: the MILP hit its time limit before finding any feasible plan.
+    """
