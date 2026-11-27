@@ -75,6 +75,21 @@ class Col(StrEnum):
     INCREMENTAL = "incremental_units"
     BASELINE_SHARE = "baseline_share"
     PROMO_WEEK_LIFT = "promo_week_lift"
+    CURRENT_PRICE = "current_price"
+    BASE_VOLUME = "base_volume_weekly"
+    UNIT_COST = "unit_cost"
+    SIZE_VALUE = "size_value"
+    SIZE_UNIT = "size_unit"
+    PRICE_RATIO = "price_ratio"
+    LINEAR_FORMULA_PRICE = "linear_formula_price"
+    ROBUST_P05 = "optimal_price_p05"
+    ROBUST_P50 = "optimal_price_p50"
+    ROBUST_P95 = "optimal_price_p95"
+    SCENARIO = "scenario"
+    OBJECTIVE_VALUE = "objective_value"
+    EVALUATIONS = "evaluations"
+    STATUS = "status"
+    MAX_VIOLATION = "max_constraint_violation"
     MODEL = "model"
     ELASTICITY_SOURCE = "elasticity_source"
     IMPUTE_REASON = "impute_reason"
@@ -142,6 +157,24 @@ class BaselineFix(StrEnum):
     ROLLING = "rolling_mean"
 
 
+class Scenario(StrEnum):
+    """Price scenarios scored by the optimization stage."""
+
+    CURRENT = "current"
+    OPTIMAL = "optimal"
+    RECOMMENDED = "recommended"  # optimal rounded to price points
+    LINEAR_FORMULA = "linear_formula"  # linear-demand optimum scored on the true curve
+
+
+class Metric(StrEnum):
+    """Per-product weekly KPIs for a price scenario."""
+
+    PRICE = "price"
+    VOLUME = "volume"
+    REVENUE = "revenue"
+    PROFIT = "profit"
+
+
 class Tactic(StrEnum):
     """Promo tactics present in the dataset; values match their panel columns."""
 
@@ -172,6 +205,11 @@ EFFECT_COLS: dict[EffectTerm, str] = {t: f"{t.value}_effect" for t in EffectTerm
 LIFT_COLS: dict[EffectTerm, str] = {t: f"{t.value}_lift" for t in EffectTerm}
 _FOURIER_TEMPLATES = ("sin_{k}", "cos_{k}")
 _PANTRY_TEMPLATE = "pl{i}"
+
+
+def kpi_col(scenario: Scenario, metric: Metric) -> str:
+    """KPI column name, e.g. optimal_profit (single definition)."""
+    return f"{scenario.value}_{metric.value}"
 
 
 def fourier_columns(order: int) -> list[str]:

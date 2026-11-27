@@ -60,3 +60,10 @@ All files are in `data/processed/`. Column names are defined once, in `src/schem
 |---|---|
 | `baseline.parquet` | Panel columns plus, per product-week: `ln_pred`, `baseline_model`, effect terms (`price_effect`, `promo_effect`, `pantry_effect`, `error_effect`), `base_raw`, one `rule_*` flag per bad-baseline rule, `baseline_units`, `baseline_fix` (`raw` / `rolling_mean` / `actual_volume`), `incremental_units`, and lifts (`price_lift`, `promo_lift`, `pantry_lift`, `error_lift`) that sum to the incremental units |
 | `baseline_summary.parquet` | Per product: units, baseline units, summed lifts, `baseline_share`, `promo_week_lift` (mean units ÷ baseline − 1 in promo weeks), weeks per fix type |
+
+### Optimization outputs
+
+| File | Content |
+|---|---|
+| `price_recommendations.parquet` | Per product: inputs (`current_price`, `base_volume_weekly`, `elasticity` + interval, `unit_cost`, pack size), weekly KPIs per scenario (`{current,optimal,recommended,linear_formula}_{price,volume,revenue,profit}`), `price_ratio` (recommended change), `linear_formula_price`, and robustness percentiles `optimal_price_p05/p50/p95` |
+| `optimization_summary.parquet` | One row per solver (`LD_SLSQP`, `LN_COBYLA`, `GN_ISRES`) and per scenario (`recommended`, `linear_formula`): weekly totals, % change vs current, `annual_profit_delta`, evaluations, time, status, `max_constraint_violation` |

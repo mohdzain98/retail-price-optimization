@@ -27,6 +27,9 @@ MODEL_COMPARISON_PATH = DATA_PROCESSED / "model_comparison.parquet"
 ELASTICITY_MODELS_PATH = DATA_PROCESSED / "elasticity_models.pkl"
 BASELINE_PATH = DATA_PROCESSED / "baseline.parquet"
 BASELINE_SUMMARY_PATH = DATA_PROCESSED / "baseline_summary.parquet"
+ELASTICITY_DRAWS_PATH = DATA_PROCESSED / "elasticity_draws.parquet"
+RECOMMENDATIONS_PATH = DATA_PROCESSED / "price_recommendations.parquet"
+OPTIMIZATION_SUMMARY_PATH = DATA_PROCESSED / "optimization_summary.parquet"
 FIGURES = ROOT / "reports" / "figures"
 
 
@@ -67,6 +70,14 @@ class ModelName(StrEnum):
     POOLED_OLS = "pooled_ols"
     MIXED_EFFECTS = "mixed_effects"
     BAYES_HIERARCHICAL = "bayes_hierarchical"
+
+
+class Algorithm(StrEnum):
+    """NLopt algorithms compared for price optimization (names match nlopt constants)."""
+
+    LD_SLSQP = "LD_SLSQP"  # local, gradient-based, handles nonlinear constraints
+    LN_COBYLA = "LN_COBYLA"  # local, derivative-free
+    GN_ISRES = "GN_ISRES"  # global, evolutionary, derivative-free
 
 
 class _Frozen(BaseModel):
@@ -218,10 +229,14 @@ class OptimizationConfig(_Frozen):
     volume_floor: float
     max_avg_price_increase: float
     ladder_min_gap: float
-    algorithms: list[str]
+    algorithms: list[Algorithm]
     maxeval: int
     xtol_rel: float
     price_endings: list[float]
+    reference_weeks: int
+    annualize_weeks: int
+    robustness_draws: int
+    seed: int
 
     @model_validator(mode="after")
     def _check_ranges(self) -> OptimizationConfig:
