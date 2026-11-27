@@ -1,0 +1,22 @@
+name: Docs improvement
+description: Something in the README, methodology, architecture or data docs is unclear, wrong or missing.
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where
+      description: File and section, e.g. docs/methodology.md, section 5.3.
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is unclear, wrong or missing
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested wording (optional)

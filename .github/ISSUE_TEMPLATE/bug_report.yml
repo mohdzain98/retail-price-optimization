@@ -1,0 +1,66 @@
+name: Bug report
+description: Something in the pipeline, the app or the tests does not work as documented.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **do not paste rows of the dunnhumby dataset or any secrets**. The data is licensed. Describe the shape or the column instead.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Data prep (make prep)
+        - Elasticity (make elasticity)
+        - Baseline (make baseline)
+        - Price optimization (make optimize)
+        - Forecast / promo MILP (make promo)
+        - Streamlit app (make app / make user)
+        - Setup, CI or tooling
+        - Docs
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: "Ran `make promo` with frontier_points: 4, expected ... but got ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Commands, config changes (config/config.yaml) and app inputs needed to see the problem.
+      placeholder: |
+        1. make setup
+        2. edit config.yaml: ...
+        3. make optimize
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output or logs
+      description: The traceback or the log lines around the failure.
+      render: shell
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, uv or pip, and the commit or branch.
+      placeholder: "macOS 15, Python 3.12.8, uv 0.8, main @ abc1234"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: The report contains no dataset rows, credentials or local account data.
+          required: true

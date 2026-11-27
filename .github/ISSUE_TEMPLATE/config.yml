@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Methodology
+    url: https://github.com/mohdzain98/retail-price-promo-optimization/blob/main/docs/methodology.md
+    about: What each step computes, its results and limitations. Many questions are answered here.
+  - name: Architecture
+    url: https://github.com/mohdzain98/retail-price-promo-optimization/blob/main/docs/architecture.md
+    about: Code layout, data flow and how to extend the pipeline.
