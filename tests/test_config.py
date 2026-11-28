@@ -76,3 +76,28 @@ class TestConfig:
         raw["data"]["columns"]["products"]["UPC"] = "not_a_column"
         with pytest.raises(ValidationError):
             Config.model_validate(raw)
+
+
+class TestPromoConfig:
+    """Promo guard-rails reject typos that would otherwise fail late."""
+
+    @pytest.mark.parametrize(
+        ("field", "value", "match"),
+        [
+            ("depths", [0.2, 0.1, 0.3], "promo.depths must be sorted"),
+            ("depths", [0.1, 0.1, 0.3], "promo.depths must not contain duplicates"),
+            ("min_marginal_return", -0.1, "promo.min_marginal_return must be >= 0"),
+            ("max_feature_slots", -1, "promo.max_feature_slots must be >= 0"),
+            ("max_display_slots", -1, "promo.max_display_slots must be >= 0"),
+        ],
+    )
+    def test_rejects_invalid_promo_setting(self, field: str, value: object, match: str) -> None:
+        """Each bad value fails at load time with a message naming the setting."""
+        raw = _raw()
+        raw["promo"][field] = value
+        with pytest.raises(ValidationError, match=match):
+            Config.model_validate(raw)
+
+    def test_shipped_config_still_loads(self) -> None:
+        """The committed promo settings remain valid."""
+        assert Config.load().promo.depths == [0.1, 0.2, 0.3]

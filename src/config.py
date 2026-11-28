@@ -326,6 +326,15 @@ class PromoConfig(_Frozen):
             raise ValueError(f"promo.fixed_cost is missing {missing}")
         if not all(0 < d < 1 for d in self.depths):
             raise ValueError("promo.depths must be in (0, 1)")
+        if len(set(self.depths)) != len(self.depths):
+            raise ValueError("promo.depths must not contain duplicates")
+        if list(self.depths) != sorted(self.depths):
+            raise ValueError("promo.depths must be sorted in ascending order")
+        if self.min_marginal_return < 0:
+            raise ValueError("promo.min_marginal_return must be >= 0")
+        for name in ("max_feature_slots", "max_display_slots"):
+            if getattr(self, name) < 0:
+                raise ValueError(f"promo.{name} must be >= 0")
         if self.frontier_points < 2:
             raise ValueError("promo.frontier_points must be >= 2")
         return self
