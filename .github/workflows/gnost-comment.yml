@@ -1,0 +1,70 @@
+# Posts GNOST's pull request comment for pull requests from forks. Written by
+# `gnost init --github-action --fork-comments`. A fork's pull request runs .github/workflows/gnost.yml with a
+# read-only token; that run hands the report over as the `gnost-comment` artifact, and this workflow,
+# which runs in this repository with a write token, posts it. It never checks out or runs the fork's
+# code, and it trusts nothing in the artifact: the pull request number must be an open pull request
+# whose head commit is the one that was analyzed, and the report is only ever posted as text.
+name: GNOST comment
+
+on:
+  workflow_run:
+    workflows: [GNOST]
+    types: [completed]
+
+permissions:
+  actions: read          # download the artifact of the GNOST run
+  pull-requests: write   # post the comment
+
+jobs:
+  comment:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the report
+        id: download
+        continue-on-error: true   # no artifact: the run stopped early or had nothing to report
+        uses: actions/download-artifact@v4
+        with:
+          name: gnost-comment
+          path: ${{ runner.temp }}/gnost-comment
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Comment on the pull request
+        if: ${{ steps.download.outcome == 'success' }}
+        uses: actions/github-script@v7
+        env:
+          REPORT_DIR: ${{ runner.temp }}/gnost-comment
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const read = (name) => fs.readFileSync(path.join(process.env.REPORT_DIR, name), 'utf8');
+            const run = context.payload.workflow_run;
+            const {owner, repo} = context.repo;
+
+            const number = read('pr-number').trim();
+            if (!/^[0-9]{1,10}$/.test(number)) {
+              core.setFailed(`Ignored: the pull request number in the artifact is not a number`);
+              return;
+            }
+            const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: Number(number)});
+            if (pr.state !== 'open' || pr.head.sha !== run.head_sha ||
+                pr.head.repo === null || pr.head.repo.full_name !== run.head_repository.full_name) {
+              core.notice(`Not commenting: pull request #${number} is closed or has moved past the analyzed commit`);
+              return;
+            }
+
+            const marker = '<!-- gnost-changes -->';
+            let body = read('comment.md').slice(0, 60000);   // GitHub allows 65,536 characters
+            if (!body.includes(marker)) body = `${marker}\n${body}`;
+            const issue_number = pr.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number});
+            const mine = comments.find(c => c.user && c.user.login === 'github-actions[bot]' && c.body && c.body.includes(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: mine.id, body});
+            } else {
+              await github.rest.issues.createComment({owner, repo, issue_number, body});
+            }
