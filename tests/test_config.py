@@ -77,6 +77,7 @@ class TestConfig:
         with pytest.raises(ValidationError):
             Config.model_validate(raw)
 
+
 class TestPromoConfig:
     """Promo guard-rails reject typos that would otherwise fail late."""
 
@@ -90,9 +91,7 @@ class TestPromoConfig:
             ("max_display_slots", -1, "promo.max_display_slots must be >= 0"),
         ],
     )
-    def test_rejects_invalid_promo_setting(
-        self, field: str, value: object, match: str
-    ) -> None:
+    def test_rejects_invalid_promo_setting(self, field: str, value: object, match: str) -> None:
         """Each bad value fails at load time with a message naming the setting."""
         raw = _raw()
         raw["promo"][field] = value
